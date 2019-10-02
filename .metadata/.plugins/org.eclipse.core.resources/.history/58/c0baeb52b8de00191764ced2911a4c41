@@ -1,0 +1,790 @@
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class br {
+
+	public static void main(String[] args) throws IOException, ClassNotFoundException{
+
+		
+		///////////////// IJPR 
+		
+		
+		Construction des solu initiales
+		
+		long startTime = System.nanoTime();
+		  int i = 1;
+			RTLB instance = new RTLB ("a"+i+".gms","e");
+			Random rnd = new Random(0);
+			Solution sol = ILS_SPLIT.initialSolutionM1(instance,rnd);
+			FileOutputStream fos = new FileOutputStream("initialSolM1_"+i+".ser");
+			try {
+				ObjectOutputStream oos = new ObjectOutputStream(fos);
+				oos.writeObject(sol);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println((System.nanoTime()-startTime)/1000000000.);
+		
+		
+		
+		long startTime = System.nanoTime();
+		  int i = 1;
+			RTLB instance = new RTLB ("a"+i+".gms","e");
+			Random rnd = new Random(0);
+			Solution sol = ILS_SPLIT.initialSolutionM2(instance,rnd);
+			FileOutputStream fos = new FileOutputStream("initialSolM2_"+i+".ser");
+			try {
+				ObjectOutputStream oos = new ObjectOutputStream(fos);
+				oos.writeObject(sol);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println((System.nanoTime()-startTime)/1000000000.);
+		
+			Calcul des sol
+			  int i = 8;
+			  
+				RTLB instance = new RTLB ("a"+i+".gms","e");
+				FileInputStream fis = new FileInputStream("initialSolM1_"+i+".ser");
+				
+				ObjectInputStream ois = new ObjectInputStream(fis);
+				Solution s = (Solution) ois.readObject();
+				ois.close();
+				if(s.getL().size()<=instance.getSmax()) {
+				for (int seed = 0; seed<10;seed++) {
+				Solution res =	ILS_SPLIT.ils(instance,seed,s,"instance"+i+"M1"+"seed"+seed+".txt");
+				}}
+				
+				int i = 15;
+				  
+				RTLB instance = new RTLB ("a"+i+".gms","e");
+				FileInputStream fis = new FileInputStream("initialSolM1_"+i+".ser");
+				
+				ObjectInputStream ois = new ObjectInputStream(fis);
+				Solution s = (Solution) ois.readObject();
+				ois.close();
+				if(s.getL().size()<=instance.getSmax()) {
+				for (int seed = 0; seed<10;seed++) {
+				Solution res =	ILS_SPLIT.ils(instance,seed,s,"instance"+i+"M1"+"seed"+seed+".txt");
+				}}
+	
+				int i = 11;
+				  
+				RTLB instance = new RTLB ("a"+i+".gms","e");
+				FileInputStream fis = new FileInputStream("initialSolM1_"+i+".ser");
+				
+				ObjectInputStream ois = new ObjectInputStream(fis);
+				Solution s = (Solution) ois.readObject();
+				ois.close();
+				if(s.getL().size()<=instance.getSmax()) {
+			
+				Solution res =	ILS_SPLIT.ils(instance,9,s,"instance"+i+"M1"+"seed"+9+".txt");
+
+				}
+				
+				// Remplissage du tableau 
+				int inst = 2;
+				List<List<String>> lines = new ArrayList<List<String>>();
+				double meanCost = 0;
+				double meanCost2 = 0;
+				double meantime = 0;
+				double Cost =0;
+				double  Costmin =  Integer.MAX_VALUE;
+				double  Costmax =  Integer.MIN_VALUE;
+				int WS =  0;
+				int WSmin =  Integer.MAX_VALUE;
+				int WSmax =  Integer.MIN_VALUE;
+				int iter =  0;
+				int itermin =  Integer.MAX_VALUE;
+				int itermax =  Integer.MIN_VALUE;
+				
+				for(int seed = 0;seed<10;seed++){
+					lines.add( Files.readAllLines(Paths.get("instance"+inst+"M1seed"+seed+".txt")));
+					Cost = Integer.parseInt(lines.get(seed).get(0).substring(5).trim());
+					meanCost = meanCost + Integer.parseInt(lines.get(seed).get(0).substring(5).trim());
+					if(Cost<Costmin) Costmin = Cost;
+					if(Costmax<Cost) Costmax = Cost;
+					meanCost2 = meanCost2 + Integer.parseInt(lines.get(seed).get(0).substring(5).trim())*Integer.parseInt(lines.get(seed).get(0).substring(5).trim());
+					meantime = meantime + Double.parseDouble(lines.get(seed).get(3).substring(4).trim());
+					WS =  Integer.parseInt(lines.get(seed).get(1).substring(3).trim());
+					if(WS<WSmin) WSmin = WS;
+					if(WSmax<WS) WSmax = WS;
+					iter =  Integer.parseInt(lines.get(seed).get(2).substring(5).trim());
+					if(iter<itermin) itermin = iter;
+					if(itermax<iter) itermax = iter;
+				}
+				double sigma = Math.sqrt(meanCost2/10-(meanCost/10)*(meanCost/10));
+		        System.out.println("Cost Mean "+meanCost/10);
+		        System.out.println("Cost sigma "+sigma);
+		        System.out.println("Cost min "+Costmin);
+		        System.out.println("Cost max "+Costmax);
+		        System.out.println("Time "+meantime/10);
+		        System.out.println("WS "+WSmin);
+		        System.out.println(WSmax);
+		        System.out.println("Iter "+itermin);
+		        System.out.println(itermax);
+	
+		///////// Fin IJPR
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// Branch and bound: d�but
+
+		/*	RTLB instance = new RTLB ("p30_3.dat");
+		//RTLB instance = new RTLB ("problem14_10_6.dat");
+		//RTLB instance = new RTLB ("b1.gms","e");
+	
+
+		long startTime = System.nanoTime();
+		Solution res =	Meta_Split.desc(instance,0);
+		double endTime1 =  ((System.nanoTime() - startTime)/1000000000.);
+		Solution nn = new Solution(res);
+		System.out.println("Initial solution (Upper Bound):"+ res);
+		System.out.println("Initial solution (Upper Bound), cost:"+ res.cost());
+		BB_SFBL solveur = new BB_SFBL(instance,res,3);
+		startTime = System.nanoTime();
+		Solution res7 = solveur.opt_Warmstart(new Random(),3);
+		double endTime2 = ((System.nanoTime() - startTime)/1000000000.);
+		System.out.println("Initial solution (Upper Bound):"+nn);
+		System.out.println("Initial solution (Upper Bound), cost:"+ nn.cost());
+		System.out.println("time up:"+ endTime1);
+		System.out.println("Final solution:"+ res7);
+		System.out.println("Final solution cost:"+res7.cost());
+		System.out.println("time bb:"+ endTime2);	
+		 */
+		
+		// Branch and bound: Fin
+		
+		
+		//*****************************************************************************
+		
+		// MIM: d�but
+
+		/*	RTLB instance = new RTLB ("p30_3.dat");
+		//RTLB instance = new RTLB ("problem14_10_6.dat");
+		//RTLB instance = new RTLB ("b1.gms","e");
+	
+
+		long startTime = System.nanoTime();
+		Solution res =	Meta_Split.desc(instance,0);
+		double endTime1 =  ((System.nanoTime() - startTime)/1000000000.);
+		System.out.println("Initial solution (Upper Bound):"+ res);
+		System.out.println("Initial solution (Upper Bound), cost:"+ res.cost());
+	
+		 */
+		
+		// MIM: Fin
+		
+		
+		//*****************************************************************************
+		
+		
+		/*
+		PrintStream out;
+	/*	try {
+			out = new PrintStream(new FileOutputStream("outputredirect.txt"));
+			System.setOut(out);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		 */
+		//PrintWriter writer = new PrintWriter("rese.txt", "UTF-8");
+
+		List<RTLB> list = new ArrayList<RTLB>();
+
+
+		//	list.add(Generator.start(60, 45, 150, 5, 4, 4, 1, 6));
+		//		list.add(new RTLB ("problem20_40_2.dat"));
+		//list.add(new RTLB("ld3.dat",5));
+		//	list.add(new RTLB ("problem14_10_1.dat"));
+		//list.add(new RTLB ("problem14_10_2.dat"));
+		//list.add(new RTLB ("problem14_10_4.dat"));
+		//list.add(new RTLB ("problem14_10_5.dat"));
+		//	list.add(new RTLB ("problem14_10_6.dat"));
+		//list.add(new RTLB ("problem14_10_7.dat"));
+		//	list.add(new RTLB ("problem14_10_8.dat"));
+		//list.add(new RTLB ("problem14_10_9.dat"));
+
+		//	list.add(new RTLB ("problem14_10_10.dat"));
+
+		//list.add(new RTLB ("problem14_25_1.dat"));
+		//list.add(new RTLB ("problem14_25_2.dat"));
+		//	list.add(new RTLB ("problem14_25_3.dat"));
+		//	list.add(new RTLB ("problem14_25_4.dat"));
+		//list.add(new RTLB ("problem14_25_5.dat"));
+		//	list.add(new RTLB ("problem14_25_6.dat"));
+		//list.add(new RTLB ("problem14_25_7.dat"));
+		//list.add(new RTLB ("problem14_25_8.dat"));
+		//		list.add(new RTLB ("problem14_25_9.dat"));
+		//list.add(new RTLB ("problem14_25_10.dat"));
+
+
+		//list.add(new RTLB ("p50_4.dat"));
+		//	list.add(new RTLB ("problem14_40_2.dat"));
+		//	list.add(new RTLB ("problem14_40_3.dat"));
+		//	list.add(new RTLB ("problem14_40_4.dat"));
+		//	list.add(new RTLB ("problem14_40_5.dat"));
+		//list.add(new RTLB ("problem14_40_6.dat"));
+		//list.add(new RTLB ("problem14_40_7.dat"));
+		//	list.add(new RTLB ("problem14_40_8.dat"));
+		//list.add(new RTLB ("problem14_40_9.dat"));
+		//	list.add(new RTLB ("problem14_40_10.dat"));
+
+
+
+		//	RTLB instance = new RTLB ();
+
+		/*	Sequence s = new Sequence(instance);
+
+		System.out.println(s.getSeq());
+
+		s.insertion(6,0);
+		System.out.println(s.insertion(6,0).getSeq());
+		s.inversion(0, 6);
+		System.out.println(s.inversion(0, 6).getSeq());
+		s.echange(1, 0);*/
+		//System.out.println(s.echange(1, 0).getSeq());
+		//	RTLB instance = new RTLB ("problem14_40_1.dat");
+		//RTLB instance3 = new RTLB ("problem14_10_6.bat");
+		//RTLB instance4 = new RTLB ("problem14_10_7.dat");
+		//RTLB instance5 = new RTLB ("problem14_10_8.dat");
+		//RTLB instance6 = new RTLB ("problem14_10_9.dat");
+
+		//RTLB instance = new RTLB ("problem14_10_7.dat");
+
+		//	List<RTLB> LI = new ArrayList<RTLB>();
+		//list.add(Generator.startm(50, 15, 50, 4, 4, 4, 1, 6));
+		//list.add(Generator.startm(30, 9, 30, 3, 4, 4, 1, 100));
+		//list.add( new RTLB ("a5.gms","r"));
+		list.add( new RTLB ("problem14_10_1.dat"));
+		/*list.add( new RTLB ("b2.gms","r"));
+	list.add( new RTLB ("b3.gms","r"));
+		list.add( new RTLB ("b4.gms","r"));
+		list.add( new RTLB ("b5.gms","r"));
+		list.add( new RTLB ("b6.gms","r"));
+		list.add( new RTLB ("b7.gms","r"));
+		list.add( new RTLB ("b8.gms","r"));
+		list.add( new RTLB ("b9.gms","r"));
+	list.add( new RTLB ("b10.gms","r"));
+	//	list.add( new RTLB ("a11.gms","r"));
+	//	list.add( new RTLB ("a12.gms","r"));
+	//	list.add( new RTLB ("a13.gms","r"));
+		//list.add( new RTLB ("a14.gms","r"));
+	//	list.add( new RTLB ("a15.gms","r"));
+
+		//		list.add( new RTLB ("problem20_40_1.dat"));
+
+
+
+
+		//		list.add( new RTLB ("problem20_40_2.dat"));
+		//	list.add( new RTLB ("problem20_40_3.dat"));
+		//	list.add( new RTLB ("problem20_40_4.dat"));
+		//	list.add( new RTLB ("problem20_40_5.dat"));
+		//	list.add( new RTLB ("problem20_40_6.dat"));
+		// 	list.add( new RTLB ("problem20_40_7.dat"));
+		//	list.add( new RTLB ("problem20_40_8.dat"));
+		//	list.add( new RTLB ("problem20_40_9.dat"));
+		//	list.add( new RTLB ("problem20_40_10.dat"));
+		List<List<Couple>> res = new ArrayList<List<Couple>>();
+
+
+		/*	LI.add(Generator.start(20, 6, 20, 3, 4, 4, 1, 6));
+		LI.add(Generator.start(30, 9, 30, 3, 4, 4, 1, 6));
+  LI.add(Generator.start(40, 12, 40, 4, 4, 4, 1, 6));
+	LI.add(Generator.start(50, 15, 50, 4, 4, 4, 1, 6));
+	LI.add(Generator.start(100,30, 100, 5, 4, 4, 1, 6));
+
+	LI.add(Generator.start(150, 45, 150, 5, 4, 4, 1, 6));
+	LI.add(Generator.start(200, 60, 200, 5, 4, 4, 1, 6));
+		LI.add(Generator.start(250, 75, 250, 5, 4, 4, 1, 6));
+	LI.add(Generator.start(300, 90, 300, 5, 4, 4, 1, 6));
+
+
+		 */
+
+
+
+
+		//RTLB instance =Generator.start(10, 3, 5, 3, 4, 4, 1, 3);
+		//RTLB instance =Generator.start(20, 6, 10, 3, 4, 4, 1, 3);
+		//RTLB instance =Generator.start(30, 9, 15, 3, 4, 4, 1, 3);
+		//	RTLB instance =Generator.start(40, 12, 20, 4, 4, 4, 1, 3);
+
+
+		/*	System.out.println(instance.getP());
+		System.out.println(instance.getP().size());
+
+		System.out.println(preproc.succ(7,instance));
+
+		System.out.println("densitySholl "+Generator.densityScholl(instance));
+
+		System.out.println("density "+Generator.density(instance));
+
+		Int�ressant ne peut pas r�soudre instance avec densist� sholl 100 et 10prct bottelneck
+		 */
+		/*for(int i= 0; i<35; i++) {
+			for(int j=0; j<35;j++) {
+			System.out.println(instance.getTt()[i][j]);
+		}}
+		 */
+
+
+		//	RTLB instance = new RTLB();
+		//RTLB instance = Essafi.instance();
+
+		//	RTLB instance = EssafiM.instance();
+
+		//	System.out.println(preproc.succ(7,instance));
+		//	System.out.println(Generator.density(instance));
+		//System.out.println(Generator.nbP(14,instance));
+
+		//System.out.println(preproc.e(14,instance));
+		//	System.out.println(Generator.nbP(14,instance));
+		//	System.out.println(instance.nbP(14,instance));
+		//System.out.println(Generator.nbP(14,instance));
+
+		//	List<Integer> l = Arrays.asList(2,1,5,4,6,0,3,10,12,14,9,8);
+
+		//System.out.println(Hybrid.nearestNeighbour(l, 7, 3, instance.getTt()));
+
+		//	System.out.println(Hybrid.voisins(   Arrays.asList(4,3,1,2,0,5,6),1,4));
+
+		//System.out.println(Hybrid.cost(l,instance.getTt()));
+
+
+
+		//System.out.println(Hybrid.costList(Hybrid.AllNeighbours(l),instance.getTt()));
+
+		//	System.out.println(Hybrid.twoOptSearch(l,instance.getTt()));
+
+		//	System.out.println(Hybrid.cost(Hybrid.twoOptSearch(l,instance.getTt()),instance.getTt()));
+
+
+		//	System.out.println(Hybrid.cost(Hybrid.NN2opt(l,15,instance.getTt()),instance.getTt()));
+		//	System.out.println(Hybrid.NN2opt(l,15,instance.getTt()));
+
+		//	System.out.println(new WSset(Hybrid.nearestNeighbour(l, 7, 3, instance.getTt()),4).cost(instance.getTt()));
+
+		/*for(int i = 1; i < 30 ; i++ )
+		{
+			if((preproc.e(i,instance)<=9)&&(9<=preproc.l(i,instance))) {
+
+				System.out.println(i);
+			}
+		}
+
+		 */
+
+
+
+
+
+
+		//RTLB instance = Generator.start(20, 6, 10, 3, 4, 4, 1, 3);
+
+		//PrintWriter writer = new PrintWriter("res"+il+".txt", "UTF-8");
+
+		//	RTLB instance = new RTLB ();
+
+		/*List<Integer> seq = new ArrayList<Integer>();
+		for(int i = 0; i<instance.getN()-3; i++ ) {
+			seq.add(i);
+		}
+		seq.add(6);
+		seq.add(5);
+		seq.add(4);
+
+		System.out.println(seq);
+		List <Integer> l = new ArrayList<Integer>();
+		for(int i = 0; i<7; i++ ) {
+		l.add(i);
+		}
+
+	Sequence s1 = new Sequence(seq);
+	Sequence s2 = new Sequence(l);
+
+	System.out.println(s1.repects(instance));
+	System.out.println(s2.repects(instance));
+		 */
+		//for(RTLB instance : list) {
+
+
+		//}
+
+		//System.out.println(sp.solve(seq));
+
+		/*	System.out.println("Solving");
+
+		long startTime = System.nanoTime();
+
+		List<WSset> l = Hybrid.solve(instance);
+
+		long endTime = System.nanoTime();
+
+		//writer.println(l);
+		System.out.println("Cout BFSOL "+Hybrid.costSol(l,instance.getTt()));
+		System.out.println(Hybrid.kk);
+		System.out.println((endTime - startTime)/.1000);
+		//System.out.println("Cout BFSOL "+Hybrid.costSol(l,instance.getTt()));
+		System.out.println("Solved");
+
+
+		System.out.println("Zlb "+preproc.zb(instance));
+
+		System.out.println("d1 "+Generator.density(instance));
+
+		System.out.println("d2 "+Generator.densityScholl(instance));
+
+
+		double res = 0;
+
+		for (WSset ws:l) {
+			if (ws.getNbM()>instance.getMp()) {
+				res = res +ws.getNbM()-instance.getMp() ;
+			} 
+		}
+
+		System.out.println("res:" +res);*/
+		//writer.close();
+		//*	System.out.println(Hybrid_Model.m(instance.getTt(),13));
+		//System.out.println("SolvingMIP");
+		//	instance.solveModel();
+		//instance.solveModel();
+		//instance3.solveModel();
+		//instance4.solveModel();
+		//instance5.solveModel();
+		//instance6.solveModel();
+		//instance7.solveModel();
+		System.out.println("/////");
+
+		try {
+			PrintWriter writer = new PrintWriter("detdesins.txt", "UTF-8");
+
+
+//int kk =5;
+//List<Double> times = new ArrayList<Double>();
+			for(RTLB instance : list) {
+
+
+				//	RTLB instance = new RTLB ();
+
+
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+
+				//	long startTime = System.nanoTime();
+
+				//	List<WSset> l = Hybrid.solve(instance);
+
+				//long endTime = System.nanoTime();
+
+				//writer.println(l);
+				//	System.out.println("Cout BFSOL "+Hybrid.costSol(l,instance.getTt()));
+				//	System.out.println(1/0);
+					Meta_Split solveur = new Meta_Split();
+				//System.out.println("cost: " + solveur.deterministicDescent_insertion_cost(instance));
+
+				//	long startTime = System.nanoTime();
+
+				//System.out.println("cost: " + solveur.deterministicDescent_echange_cost(instance));
+				//int i =0;
+
+				//RTLB instance=  new RTLB ("p14-10-1.dat");
+
+
+
+
+					List<WSset> sol = solveur.deterministicDescent_echange_solV6(instance,0);
+		/*		while ((sol == null) &&(i<100000)) {
+					sol = solveur.deterministicDescent_echange_solV2(instance,i);
+					//	System.out.println("ge"+sol);
+					i++;
+
+				}*/
+
+		//		long startTime = System.nanoTime();
+		//		Solution s = Hybrid.solve_tild(instance);
+		//		long  endTime = System.nanoTime();
+				//Solution s = Hybrid.solve(instance);
+			//	FileOutputStream fos = new FileOutputStream("sb"+kk+".ser");
+				//kk++;
+			/*	try {
+					ObjectOutputStream oos = new ObjectOutputStream(fos);
+					oos.writeObject(s);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}*/
+
+			/*	FileInputStream fis = new FileInputStream("sa"+kk+".ser");
+				kk++;
+				ObjectInputStream ois = new ObjectInputStream(fis);
+				Solution s = (Solution) ois.readObject();
+				ois.close();
+				*/
+				
+				
+
+		//		times.add((endTime - startTime)/1000000000.);
+				
+			//	List<Couple> res_aux =null;
+				//res_aux = new ArrayList<Couple>();
+				//		for (int seed = 0; seed<30; seed++) {
+
+
+
+			
+
+				/*Solution opt2 = new Solution(s);
+				System.out.println(s);
+				System.out.println(s.cost());
+			 startTime = System.nanoTime();
+				      Solution opt =   s.SA_ALNS(instance, 0);
+					  endTime = System.nanoTime();
+			System.out.println("cost"+opt.cost());
+			System.out.println("time: " +(endTime - startTime)/1000000000.);*/
+					  
+				
+				//do {
+				//		opt = opt2.deterDescenteV3(instance);
+				//	System.out.println("Apr�s rl1"+opt);
+				//	opt2 = opt.deterDescenteV1(instance);
+				//	System.out.println("Apr�s rl2"+opt2);
+/*               Solution  opt3 = opt2.SA_ALNS(instance,2000);
+				//}
+				//while(opt2.cost()<opt.cost());
+
+				System.out.println("Apr�s rl"+opt3);
+				System.out.println("cout"+opt3.cost());
+				endTime = System.nanoTime();
+				System.out.println("time: " +(endTime - startTime)/1000000000.);
+
+
+				Sequence se = new Sequence(opt3);
+
+				Split sp = new Split(instance,se.getSeq());
+				int cost = sp.solve_cost(se.getSeq());
+				System.out.println("cout SFBL"+cost);
+
+				res_aux.add(new Couple(opt3.cost(),cost));
+				System.out.println(new Couple(opt3.cost(),cost));
+				//	System.out.println(Hybrid.costSol(l,instance.getTt()));
+
+				/*			List<Integer> gs = new ArrayList<Integer>();	
+				for (WSset ss : l) {
+					gs.addAll(ss.getSet());
+				}
+				int i =0;*/
+				//List<WSset> sol = solveur.deterministicDescent_inversion_solV2(copy,gs);
+				//	System.out.println("i"+i);
+				//	System.out.println("cost"+sol.cost());
+				//System.out.println("solution: " + solveur.deterministicDescent_echange_sol(instance));
+				//System.out.println(sol.Loads(instance));
+				//	long  endTime = System.nanoTime();
+				//	}
+				//res.add(res_aux);
+				//	System.out.println("time: " +(endTime - startTime)/.1000);*/
+				System.out.println("Zlb "+preproc.zb(instance));
+				/*
+
+
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				System.out.println("/////");
+				/*
+		try {
+			System.in.read();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}*/
+				/*
+			Meta_Split_Stoch solveur = new Meta_Split_Stoch();
+		//System.out.println("cost: " + solveur.deterministicDescent_insertion_cost(instance));
+
+		long startTime = System.nanoTime();
+
+		System.out.println("cost: " + solveur.stochDescent_echange_cost(instance, 100000));
+		Solution sol = new Solution(solveur.stochDescent_echange_sol(instance, 100000));
+
+		System.out.println("solution: " + solveur.stochDescent_echange_sol(instance, 100000));
+		System.out.println(sol.Loads(instance));
+
+		long endTime = System.nanoTime();
+
+
+		System.out.println("time: " +(endTime - startTime)/.1000);
+		System.out.println("Zlb "+preproc.zb(instance));*/
+			}
+			
+			//System.out.println(times);
+	//		System.out.println(res);
+
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (UnsupportedEncodingException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+
+		/*
+	RTLB instance = new RTLB ();
+	Sequence s = new Sequence(instance);
+	Split sp = new Split(instance,s.getSeq());
+	int cost = sp.solve_cost(s.getSeq());
+
+	System.out.println(cost);
+	System.out.println(sp.labels);
+	System.out.println(sp.c[4][7]);
+
+
+		 */
+
+
+		//	System.out.println("SolvedMIP");
+
+
+		/*
+		System.out.println(Hybrid_Step1.solve(instance));
+
+		System.out.println("fin ");
+		 */
+		//System.out.println(preproc.M(2, instance));
+
+		//System.out.println(preproc.prec(6,instance));
+		/*
+				for (int i = 0; i<instance.n ; i++)
+			System.out.println((i)+" "+preproc.e(i,instance)+" "+preproc.l(i,instance));
+
+
+
+		for (int j = 0; j<instance.smax ; j++)
+			System.out.println((j)+" "+preproc.M(j, instance));*/
+
+		/*	double sum = 0 ;
+
+
+		for(int i = 0 ; i <instance.getN(); i++) {
+
+
+
+				sum =  sum + instance.getT()[i];
+
+			}
+		 */
+		//System.out.println("sum :"+sum  );
+
+		//	writer.close();
+
+
+
+
+	}
+
+}
+05/02/2018
+//writer.println("Start");
+//RTLB instance = new RTLB ("problem14_10_1.dat");
+
+List<RTLB> list = new ArrayList<RTLB>();
+//	list.add(new RTLB ("a1.gms","e"));
+//	list.add(new RTLB ("a2.gms","e"));
+//	list.add(new RTLB ("a3.gms","e"));
+//	list.add(new RTLB ("a4.gms","e"));
+//	list.add(new RTLB ("a5.gms","e"));
+//list.add(new RTLB ("a6.gms","e"));
+//	list.add(new RTLB ("a7.gms","e"));
+//	list.add(new RTLB ("a8.gms","e"));
+//	list.add(new RTLB ("a9.gms","e"));
+list.add(new RTLB ("a10.gms","e"));
+//list.add(new RTLB ("a11.gms","e"));
+//list.add(new RTLB ("a12.gms","e"));
+//	list.add(new RTLB ("a13.gms","e"));
+//list.add(new RTLB ("a14.gms","e"));
+//list.add(new RTLB ("a15.gms","e"));
+
+for(RTLB instance: list) {
+	PrintWriter writer = new PrintWriter("Vendred"+instance.getText(), "UTF-8");
+
+	Solution cs =	Meta_Split.descfeas2(instance,0);
+	
+	for (int i = 0; i<10;i++) {
+	
+	
+	writer.println("i "+i);
+//Solution sol = new Solution();
+
+//System.out.println(sol.Partition(instance));
+//Sequence seq = new Sequence ();
+//seq.mor(instance, 0);
+//System.out.println(seq.getSeq());
+
+//for (int i = 0; i< 200; i++) {
+Meta_Split.deterministicDescent_insertion_sol(instance, 178088888);
+//	Meta_Split.VNS(instance, 3);
+
+//List<Solution> res = new ArrayList<Solution>();
+
+res.add(Meta_Split.desc(instance,i));
+	//res.add(Meta_Split.rep_Alns(instance,i));
+
+//		Solution res = Meta_Split.rep_Alns(instance,0);
+
+		Solution res =	Meta_Split.desc2(instance, i,  writer,  cs);
+		
+	writer.println("cost "+res.cost() + ","+ res.getL().size());
+
+	
+
+}
+//	}}
+writer.close();
+	}
+System.out.println("End");
+
+
+}
+
+//	instance.solveModel();
+//instance.solveModelRelax(instance.getModelRelax());

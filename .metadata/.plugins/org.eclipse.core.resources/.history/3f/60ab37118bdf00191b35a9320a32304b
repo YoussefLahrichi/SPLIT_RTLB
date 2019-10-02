@@ -1,0 +1,966 @@
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
+//les ops ici sont num de 1 a n, 0 op fictive
+public class Split {
+
+	int n;
+	int [][] c; 
+	List<List<label>> labels;
+	int smax;
+	List<Integer> seq;
+	RTLB instance ;
+	/**
+	 * Constructeur � l'ainde d'une instance et d'une sequence
+	 * @param instance0
+	 * instance du probleme
+	 * @param seq
+	 * s�quence initiale
+	 */
+
+	public Split (RTLB instance0 , List<Integer> seq) {
+		instance = instance0;
+		raz( seq);
+	}
+	public int[][] getC() {
+		int[][] cres = new int [n][n+1];
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+				cres[i][j]=c[i][j];
+			}
+		}
+		return cres;
+	}
+	public void setC(int[][] c) {
+		this.c = c;
+	}
+	public Split (RTLB instance0 ) {
+		n = instance0.getN();
+		instance = instance0;
+	}
+	/**
+	 * (Re)mise � z�ro, R�initialise la classe Split avec la s�quence en parametre
+	 * 
+	 * @param seq0
+	 *  S�quence d'initialisation
+	 */
+	public void raz ( List<Integer> seq0) {
+		seq = seq0;
+		n = instance.getN();
+		smax = instance.getSmax();
+		labels = new ArrayList<List<label>>() ;
+		labels.add(new ArrayList<label>());
+		List<Integer> l0 = new ArrayList<Integer>();
+		l0.add(0);
+		labels.get(0).add(new label (0,0,l0));
+		for (int i = 1; i <(n+1); i++) {
+			labels.add(new ArrayList<label>());
+			labels.get(i).add(new label (100000,100000,null));
+
+		}
+		c = new int [n][n+1];
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+
+				double an = 0;
+				for(int k = i +1 ; k < (j+1) ; k++) {
+					an = an +instance.getT()[seq.get(k-1)];
+				}
+
+				double bn = 0;
+				for(int k = i +1 ; k < j ; k++) {
+					bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+				}
+				double cn = 0;
+				if (i<j-1) {
+					cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+				}
+				c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+			}
+		}
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+				if (c[i][j]>instance.getMp()) {
+					c[i][j] = 100000;
+				}
+				if (j-i>instance.getM()) {
+					c[i][j] = 100000;
+				}
+				for(List<Integer> SE : instance.getE()) {
+					int resSE = 0;
+					for (int op = i+1; op <(j+1); op++) {
+						if (SE.contains(seq.get(op-1))) {resSE = resSE +1;}
+					}
+					if (resSE == SE.size()) {
+						c[i][j] = 100000;
+						//	System.out.println("a");
+					}
+				}
+				if(!instance.getA().isEmpty())
+				{
+					List<Integer> inter = new ArrayList<Integer>();
+					inter.addAll(instance.getA().get(seq.get(i)));
+					iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+						List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+						inter.retainAll(inter2);
+						if (inter.isEmpty()) {
+							c[i][j] = 100000;
+							break iii;
+						}
+					}
+				}
+				for(Couple I : instance.getI()) {
+					boolean inter1 = true;
+					boolean inter2 = true;
+					for (int op = i+1; op <(j+1); op++) {
+						if (seq.get(op-1) == I.min()) 
+							inter1 = !inter1;
+						if (seq.get(op-1)  == I.max())
+							inter2 = !inter2;
+
+					}
+					if ((!inter1&&inter2)||(inter1&&!inter2)) {
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+		}
+	}
+
+	public void raz ( List<Integer> seq0,int kii, int kjj,int[][] cres) {
+
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+				c[i][j]=cres[i][j];
+			}
+		}
+		seq = seq0;
+		n = instance.getN();
+		smax = instance.getSmax();
+		labels = new ArrayList<List<label>>() ;
+		labels.add(new ArrayList<label>());
+		List<Integer> l0 = new ArrayList<Integer>();
+		l0.add(0);
+		labels.get(0).add(new label (0,0,l0));
+		for (int i = 1; i <(n+1); i++) {
+			labels.add(new ArrayList<label>());
+			labels.get(i).add(new label (100000,100000,null));
+
+		}
+		for (int i = kii+1; i<=(kjj+1); i++ ) {
+			for (int j = kii+1; j<=(kjj); j++ ) {
+				if(i<j) {
+					c[i][j] = c[i+1][j+1];
+				}	
+
+			}
+			for (int j = kjj+1; j<(n+1); j++ ) {
+				if(i<j) {
+					double an = 0;
+					for(int k = i +1 ; k < (j+1) ; k++) {
+						an = an +instance.getT()[seq.get(k-1)];
+					}
+
+					double bn = 0;
+					for(int k = i +1 ; k < j ; k++) {
+						bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+					}
+					double cn = 0;
+					if (i<j-1) {
+						cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+					}
+					c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+
+					if (c[i][j]>instance.getMp()) {
+						c[i][j] = 100000;
+					}
+					if (j-i>instance.getM()) {
+						c[i][j] = 100000;
+					}
+				/*	for(Couple E : instance.getE()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == E.min()) inter1 = !inter1;
+							if (seq.get(op-1)  == E.max()) inter2 = !inter2;
+
+						}
+						if (!inter1&&!inter2) {
+							c[i][j] = 100000;
+							//	System.out.println("a");
+						}
+					}*/
+					if(!instance.getA().isEmpty())
+					{
+						List<Integer> inter = new ArrayList<Integer>();
+						inter.addAll(instance.getA().get(seq.get(i)));
+						iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+							List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+							inter.retainAll(inter2);
+							if (inter.isEmpty()) {
+								c[i][j] = 100000;
+								break iii;
+							}
+						}
+					}
+					/*for(Couple I : instance.getI()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == I.min()) 
+								inter1 = !inter1;
+							if (seq.get(op-1)  == I.max())
+								inter2 = !inter2;
+
+						}
+						if ((!inter1&&inter2)||(inter1&&!inter2)) {
+							c[i][j] = 100000;
+						}
+
+					}*/
+
+
+				}	
+
+			}
+		}
+		for (int i = 0; i<=kii; i++ ) {
+			for (int j = kii+1; j<(n+1); j++ ) {
+				if(i<j) {
+					double an = 0;
+					for(int k = i +1 ; k < (j+1) ; k++) {
+						an = an +instance.getT()[seq.get(k-1)];
+					}
+
+					double bn = 0;
+					for(int k = i +1 ; k < j ; k++) {
+						bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+					}
+					double cn = 0;
+					if (i<j-1) {
+						cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+					}
+					c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+
+					if (c[i][j]>instance.getMp()) {
+						c[i][j] = 100000;
+					}
+					if (j-i>instance.getM()) {
+						c[i][j] = 100000;
+					}
+				/*	for(Couple E : instance.getE()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == E.min()) inter1 = !inter1;
+							if (seq.get(op-1)  == E.max()) inter2 = !inter2;
+
+						}
+						if (!inter1&&!inter2) {
+							c[i][j] = 100000;
+							//	System.out.println("a");
+						}
+					}*/
+					if(!instance.getA().isEmpty())
+					{
+						List<Integer> inter = new ArrayList<Integer>();
+						inter.addAll(instance.getA().get(seq.get(i)));
+						iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+							List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+							inter.retainAll(inter2);
+							if (inter.isEmpty()) {
+								c[i][j] = 100000;
+								break iii;
+							}
+						}
+					}
+				/*	for(Couple I : instance.getI()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == I.min()) 
+								inter1 = !inter1;
+							if (seq.get(op-1)  == I.max())
+								inter2 = !inter2;
+
+						}
+						if ((!inter1&&inter2)||(inter1&&!inter2)) {
+							c[i][j] = 100000;
+						}
+
+					}*/
+
+				}	}
+		}
+
+		for(Couple I : instance.getI()) {
+			int aabis = seq.indexOf(I.min())+1;
+			int bbbis = seq.indexOf(I.max())+1;
+			int aa =-1;
+			int bb =-1;
+			if (aabis<bbbis) { aa = aabis; 
+			bb = bbbis;
+			}
+			else{ aa = bbbis; 
+			bb = aabis;
+			}
+			for (int i = 0; i<aa; i++ ) {
+				for (int j = aa; j<bb; j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+			for (int i = aa; i<bb; i++ ) {
+				for (int j = bb; j<(n+1); j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+		}
+		for(List<Integer> SE : instance.getE()) {
+			List<Integer> ops = new ArrayList<Integer>();
+			for (int op : SE) {
+				ops.add(seq.indexOf(op)+1);
+			}
+			int aa =Collections.min(ops);
+			int bb =Collections.max(ops);
+			for (int i = 0; i<aa; i++ ) {
+				for (int j = bb; j<(n+1); j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+
+		}
+		/////////////////////////////////
+
+
+
+
+
+
+	}
+
+
+	public void razb ( List<Integer> seq0,int kii, int kjj,int[][] cres) {
+
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+				c[i][j]=cres[i][j];
+			}
+		}
+		seq = new ArrayList<Integer>();
+
+		seq.addAll(seq0);
+		n = instance.getN();
+		smax = instance.getSmax();
+		labels = new ArrayList<List<label>>() ;
+		labels.add(new ArrayList<label>());
+		List<Integer> l0 = new ArrayList<Integer>();
+		l0.add(0);
+		labels.get(0).add(new label (0,0,l0));
+		for (int i = 1; i <(n+1); i++) {
+			labels.add(new ArrayList<label>());
+			labels.get(i).add(new label (100000,100000,null));
+
+		}
+		for (int i = kjj; i>kii; i-- ) {
+			for (int j = (kjj+1); j>kii+1; j-- ) {
+				if(i<j) {
+
+					c[i][j] = c[i-1][j-1];
+
+				}	
+
+			}
+			for (int j = kjj+2; j<(n+1); j++ ) {
+				if(i<j) {
+					double an = 0;
+					for(int k = i +1 ; k < (j+1) ; k++) {
+						an = an +instance.getT()[seq.get(k-1)];
+					}
+
+					double bn = 0;
+					for(int k = i +1 ; k < j ; k++) {
+						bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+					}
+					double cn = 0;
+					if (i<j-1) {
+						cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+					}
+					c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+					if (c[i][j]>instance.getMp()) {
+						c[i][j] = 100000;
+					}
+					if (j-i>instance.getM()) {
+						c[i][j] = 100000;
+					}
+				/*	for(Couple E : instance.getE()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == E.min()) inter1 = !inter1;
+							if (seq.get(op-1)  == E.max()) inter2 = !inter2;
+
+						}
+						if (!inter1&&!inter2) {
+							c[i][j] = 100000;
+							//	System.out.println("a");
+						}
+					}*/
+					if(!instance.getA().isEmpty())
+					{
+						List<Integer> inter = new ArrayList<Integer>();
+						inter.addAll(instance.getA().get(seq.get(i)));
+						iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+							List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+							inter.retainAll(inter2);
+							if (inter.isEmpty()) {
+								c[i][j] = 100000;
+								break iii;
+							}
+						}
+				}
+				/*for(Couple I : instance.getI()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == I.min()) 
+								inter1 = !inter1;
+							if (seq.get(op-1)  == I.max())
+								inter2 = !inter2;
+
+						}
+						if ((!inter1&&inter2)||(inter1&&!inter2)) {
+							c[i][j] = 100000;
+						}
+
+					}*/
+				}	
+
+			}
+		}
+		for (int i = 0; i<=kii; i++ ) {
+			for (int j = kii+1; j<(n+1); j++ ) {
+				if(i<j) {
+					double an = 0;
+					for(int k = i +1 ; k < (j+1) ; k++) {
+						an = an +instance.getT()[seq.get(k-1)];
+					}
+
+					double bn = 0;
+					for(int k = i +1 ; k < j ; k++) {
+						bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+					}
+					double cn = 0;
+					if (i<j-1) {
+						cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+					}
+					c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+					if (c[i][j]>instance.getMp()) {
+						c[i][j] = 100000;
+					}
+					if (j-i>instance.getM()) {
+						c[i][j] = 100000;
+				}
+			/*		for(Couple E : instance.getE()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == E.min()) inter1 = !inter1;
+							if (seq.get(op-1)  == E.max()) inter2 = !inter2;
+
+						}
+						if (!inter1&&!inter2) {
+							c[i][j] = 100000;
+							//	System.out.println("a");
+						}
+					}*/
+					if(!instance.getA().isEmpty())
+					{
+						List<Integer> inter = new ArrayList<Integer>();
+						inter.addAll(instance.getA().get(seq.get(i)));
+						iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+							List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+							inter.retainAll(inter2);
+							if (inter.isEmpty()) {
+								c[i][j] = 100000;
+								break iii;
+							}
+						}
+					}
+			/*	for(Couple I : instance.getI()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == I.min()) 
+								inter1 = !inter1;
+							if (seq.get(op-1)  == I.max())
+								inter2 = !inter2;
+
+						}
+						if ((!inter1&&inter2)||(inter1&&!inter2)) {
+							c[i][j] = 100000;
+						}
+
+					}*/
+				}	}
+		}
+
+
+		/////////////////////////////////
+		for(Couple I : instance.getI()) {
+			int aabis = seq.indexOf(I.min())+1;
+			int bbbis = seq.indexOf(I.max())+1;
+			int aa =-1;
+			int bb =-1;
+			if (aabis<bbbis) { aa = aabis; 
+			bb = bbbis;
+			}
+			else{ aa = bbbis; 
+			bb = aabis;
+			}
+			for (int i = 0; i<aa; i++ ) {
+				for (int j = aa; j<bb; j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+			for (int i = aa; i<bb; i++ ) {
+				for (int j = bb; j<(n+1); j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+
+				}
+			}
+		}
+		for(List<Integer> SE : instance.getE()) {
+			List<Integer> ops = new ArrayList<Integer>();
+			for (int op : SE) {
+				ops.add(seq.indexOf(op)+1);
+			}
+			int aa =Collections.min(ops);
+			int bb =Collections.max(ops);
+			for (int i = 0; i<aa; i++ ) {
+				for (int j = bb; j<(n+1); j++ ) {
+					if (i<j) {
+
+						c[i][j] = 100000;
+					}
+			}
+			}
+		}
+	}
+	public void raz ( List<Integer> seq0,int p) {
+		seq = seq0;
+		smax = instance.getSmax();
+		labels = new ArrayList<List<label>>() ;
+		labels.add(new ArrayList<label>());
+		List<Integer> l0 = new ArrayList<Integer>();
+		l0.add(0);
+		labels.get(0).add(new label (0,0,l0));
+		for (int i = 1; i <(n+1); i++) {
+			labels.add(new ArrayList<label>());
+			labels.get(i).add(new label (100000,100000,null));
+
+		}
+		c = new int [n][n+1];
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+				if((j>p)) {
+					if (p>i) {
+						double an = 0;
+						List<Integer> visited2 = new ArrayList<Integer>();
+						for(int k = i +1 ; k < (p+1) ; k++) {
+							an = an +instance.getT()[seq.get(k-1)];
+							visited2.add(seq.get(k-1));
+						}
+						an = an + instance.tmin(visited2,j-p);
+						double bn = 0;
+						List<Couple> visited3 = new ArrayList<Couple>();
+						for(int k = i +1 ; k < p ; k++) {
+							bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+							visited3.add(new Couple (seq.get(k-1),seq.get(k)));
+							for (int ii = 0; ii<instance.getN();ii++) {
+								visited3.add(new Couple (seq.get(k-1),ii));
+								visited3.add(new Couple (ii,seq.get(k)));
+							}
+						}
+						double aux1 = instance.cminfrom(visited3,seq.get(p-1));
+						double aux2 = instance.cminto(visited3,seq.get(i));
+						bn =  bn + aux1+aux2+instance.cmin(visited3,j-p-1);
+						c[i][j] = (int) Math.ceil((an+bn)/(instance.getC())) ;
+					}
+					else {
+						c[i][j] = (int) Math.ceil(((instance.cmin(new ArrayList<Couple>(),j-i))+instance.tmin(new ArrayList<Integer>(),j-i))/(instance.getC()));
+					}				
+				}
+				else			{	
+					double an = 0;
+					for(int k = i +1 ; k < (j+1) ; k++) {
+						an = an +instance.getT()[seq.get(k-1)];
+					}
+					double bn = 0;
+					for(int k = i +1 ; k < j ; k++) {
+						bn = bn +instance.getTt()[seq.get(k-1)][seq.get(k)];
+					}
+					double cn = 0;
+					if (i<j-1) {
+						cn = instance.getTt()[seq.get(j-1)][seq.get(i)];
+					}
+					c[i][j] = (int) Math.ceil((an+bn+cn)/(instance.getC())) ;
+				}
+			}
+		}
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {							
+				if (j<(p+1)) {				
+					for(List<Integer> SE : instance.getE()) {
+						int resSE = 0;
+						for (int op = i+1; op <(j+1); op++) {
+							if (SE.contains(seq.get(op-1))) {resSE = resSE +1;}
+						}
+						if (resSE == SE.size()) {
+							c[i][j] = 100000;
+						}
+					}
+					for(List<Integer> SE : instance.getE()) {
+						int resSE = 0;
+						for (int op = i+1; op <(j+1); op++) {
+							if (SE.contains(seq.get(op-1))) {resSE = resSE +1;}
+						}
+						if (resSE == SE.size()) {
+							c[i][j] = 100000;
+						}
+					}
+					if(!instance.getA().isEmpty())
+					{
+						List<Integer> inter = new ArrayList<Integer>();
+						inter.addAll(instance.getA().get(seq.get(i)));
+						iii:	for(int ki = i+1; ki<(j+1);ki++ ) {
+							List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+							inter.retainAll(inter2);
+							if (inter.isEmpty()) {
+								c[i][j] = 100000;
+								break iii;
+							}
+						}
+					}
+					for(Couple I : instance.getI()) {
+						boolean inter1 = true;
+						boolean inter2 = true;
+						for (int op = i+1; op <(j+1); op++) {
+							if (seq.get(op-1) == I.min()) 
+								inter1 = !inter1;
+							if (seq.get(op-1)  == I.max())
+								inter2 = !inter2;
+
+						}
+						if ((!inter1&&inter2)||(inter1&&!inter2)) {
+							c[i][j] = 100000;
+						}
+					}
+				}else {
+					if((j>p)) {
+						if (p>i) {
+							for(List<Integer> SE : instance.getE()) {
+								int resSE = 0;
+								for (int op = i+1; op <(j+1); op++) {
+									if (SE.contains(seq.get(op-1))) {resSE = resSE +1;}
+								}
+								if (resSE == SE.size()) {
+									c[i][j] = 100000;
+								}
+							}
+							if(!instance.getA().isEmpty())
+							{
+								List<Integer> inter = new ArrayList<Integer>();
+								inter.addAll(instance.getA().get(seq.get(i)));
+								iii:	for(int ki = i+1; ki<(p+1);ki++ ) {
+									List<Integer> inter2 = instance.getA().get(seq.get(ki-1));
+									inter.retainAll(inter2);
+									if (inter.isEmpty()) {
+										c[i][j] = 100000;
+										break iii;
+									}
+								}
+							}
+						}}
+				}			
+			}
+		}
+		for (int i = 0; i<n; i++ ) {
+			for (int j = i+1; j<(n+1); j++ ) {
+
+				if (c[i][j]>instance.getMp()) {
+					c[i][j] = 100000;
+				}
+				if (j-i>instance.getM()) {
+					c[i][j] = 100000;
+				}
+			}
+		}
+	}
+	/**
+	 * Splits the sequence
+	 */
+	public void split () {
+		for (int t = 0 ; t < n ; t++) {
+			if(labels.get(t).get(0).getA()<100000){
+				for (int i = t+1;i<(n+1); i++) {
+					if(c[t][i]<100000){
+						for (label lb : labels.get(t)) {
+							if ((lb.getB() < smax-1  )|| (i ==n))    {
+								if ( !lb.propagate(c[t][i], i).isDominatedorequivalent(labels.get(i)) )    {
+									labels.get(i).add(lb.propagate(c[t][i], i));
+									for (Iterator<label> iter = labels.get(i).listIterator(); iter.hasNext();) {
+										label lbl = iter.next();
+										if (lbl.isDominated(lb.propagate(c[t][i], i))) {
+											iter.remove();
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	/**
+	 * Splits the sequence
+	 */
+	public void split_unfeas () {
+		for (int t = 0 ; t < n ; t++) {
+			if(labels.get(t).get(0).getA()<100000){
+				for (int i = t+1;i<(n+1); i++) {
+					if(c[t][i]<100000){
+						for (label lb : labels.get(t)) {
+							if ( !lb.propagate(c[t][i], i).isDominatedorequivalent(labels.get(i)) )    {
+								labels.get(i).add(lb.propagate(c[t][i], i));
+								for (Iterator<label> iter = labels.get(i).listIterator(); iter.hasNext();) {
+									label lbl = iter.next();
+									if (lbl.isDominated(lb.propagate(c[t][i], i))) {
+										iter.remove();
+									}
+								}
+							}
+						}
+					}
+				}
+			}else {
+			}
+
+		}
+	}
+	/**
+	 * converts the split to a solution
+	 * @return A solution
+	 */
+	public Solution decode() {
+		List<Integer> shorthest_path = null;
+		int shorthestpathcost = 1000000; 
+		for(label lb : labels.get(n)) {
+			if (lb.getA()<shorthestpathcost){
+				shorthestpathcost = lb.getA();
+				shorthest_path = lb.getC();
+			}
+		}
+		List<WSset> res = new ArrayList<WSset>();
+		List<Integer> l  = new ArrayList<Integer>();
+		if (shorthest_path  == null) {
+			return null;
+		}
+		Collections.reverse(shorthest_path);
+		l = shorthest_path;
+		for (int i =  l.size()-1 ; i > 0; i--) {
+			List<Integer> set = new ArrayList<Integer>() ;
+			for (int h=  l.get(i)+1 ;  h <= l.get(i-1);h++) {
+				int interme = seq.get(h-1);
+				set.add(interme);
+			} 
+			int nb = c[l.get(i)][l.get(i-1)];
+			res.add(new WSset(set,nb));
+		}
+		return new Solution(res);
+	}
+
+	public Solution decode_unfeas() {
+		List<Integer> shorthest_path = null;
+		int shorthestpathcost = 1000000; 
+		int nbWS= 1000000; 
+		for(label lb : labels.get(n)) {
+			if (lb.getB()<nbWS){
+				shorthestpathcost = lb.getA();
+				nbWS = lb.getB();
+				shorthest_path = lb.getC();
+			}
+			if ((lb.getB()==nbWS)&&(lb.getA()<shorthestpathcost)){
+				shorthestpathcost = lb.getA();
+				nbWS = lb.getB();
+				shorthest_path = lb.getC();
+			}
+		}
+		if (nbWS<=smax) {
+			shorthestpathcost = 1000000; 
+			nbWS= 1000000; 
+			for(label lb : labels.get(n)) {
+				if ((lb.getA()<shorthestpathcost)&&((lb.getB()<=smax))){
+					shorthestpathcost = lb.getA();
+					nbWS = lb.getB();
+					shorthest_path = lb.getC();
+				}
+			}
+		}
+
+		List<WSset> res = new ArrayList<WSset>();
+		List<Integer> l  = new ArrayList<Integer>();
+		if (shorthest_path  == null) {
+			return null;
+		}
+		Collections.reverse(shorthest_path);
+		l = shorthest_path;
+		for (int i =  l.size()-1 ; i > 0; i--) {
+			List<Integer> set = new ArrayList<Integer>() ;
+			for (int h=  l.get(i)+1 ;  h <= l.get(i-1);h++) {
+				set.add(seq.get(h-1));
+			} 
+			int nb = c[l.get(i)][l.get(i-1)];
+			res.add(new WSset(set,nb));
+		}
+		return new Solution(res);
+	}
+
+	/**
+	 * perfoms the split and returns a solution
+	 * @param seq
+	 * sequznce to be split
+	 * @return 
+	 * Optimal split solution
+	 */
+	public Solution solve(List<Integer> seq2) {
+		raz(seq2);
+		split();
+		return decode();
+	}
+
+	public Solution solve(List<Integer> seq2,int i,int j,int[][] cres) {
+		if(i<j) {
+			raz(seq2,i,j,cres);
+			//raz(seq2);
+		}else {
+			razb(seq2,j,i,cres);
+			//raz(seq2);
+		}
+		split();
+		return decode();
+	}
+	/**
+	 * performs the split without considering the maximum number of workstation, if a feasible solution exists: minimizes number of machines otherwise minimizes number of workstations 
+	 * @param seq
+	 * @return
+	 */
+
+	public Solution solve_unfeas(List<Integer> seq2) {
+		raz(seq2);
+		split_unfeas();
+		return decode_unfeas();
+	}
+
+	
+	public Solution solve_unfeas(List<Integer> seq2,int i,int j,int[][] cres) {
+		if(i<j) {
+			raz(seq2,i,j,cres);
+			//raz(seq2);
+		}else {
+			razb(seq2,j,i,cres);
+			//raz(seq2);
+		}
+		split_unfeas();
+		return decode();
+	}
+	
+	
+	
+	
+	public Solution testFeas(List<Integer> seq2) {
+		int p = seq2.size() ;
+		complete(seq2);
+		if (seq2.size()<n) {
+			return null;
+		}
+		raz(seq2,p);
+		split();
+		Solution sol = decode();
+		return sol;
+	}
+
+	private void complete(List<Integer> seq2) {
+		int iii = 0; 
+		int jjj = 1;
+		while ((seq2.size()<n)&& (iii!=jjj) ){
+			iii = seq2.size();	
+			for (int i =0;i<instance.getN();i++) {
+				if(!seq2.contains(i)){
+					seq2.add(i);
+					Sequence s = new Sequence (seq2);
+					if (!s.repects(instance)) {
+						seq2.remove(seq2.size()-1);
+					}
+				}
+			}
+			jjj = seq2.size();
+		}
+	}
+
+	public Solution ub(Sequence s, Random rnd) {
+		int p = s.getN() ;
+		complete(s.getSeq());
+		raz(s.getSeq());
+		split();
+		Solution sol = decode();
+		int iter = 0;
+		while((sol == null)&& (iter<1000)){
+			iter++;
+			int i = p+ rnd.nextInt(instance.getN()-p);
+			int ip = Sequence.p(i,instance,s); 
+			if (p>ip+1) {
+				ip = p -1	;
+			}
+			int is = Sequence.s(i,instance,s); 
+			if (is-ip>2) {
+
+				int j = ip + 1 + rnd.nextInt(is-ip-1);
+
+				if(i !=j) {
+					Sequence voisin = s.insertion(i, j);
+					if ( voisin.repects(instance))  {					
+						s = voisin;		
+						raz(s.getSeq());
+						split();
+						sol = decode();
+					}
+				}}
+		}
+		return sol;
+	}
+
+}

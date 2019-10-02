@@ -1,0 +1,1702 @@
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+import java.io.Serializable;
+
+public class Solution implements Serializable{
+
+	private static final long serialVersionUID = 1L;
+
+	List<WSset> l;
+
+	Solution (Solution s) {
+		l = new ArrayList<WSset>();
+		for (WSset ws : s.getL()) {
+			WSset wsc = new WSset (ws); 
+			l.add(wsc);
+		}
+
+	}
+
+	public List<WSset> getL() {
+		return l;
+	}
+
+	public Solution() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Solution(List<WSset> l) {
+		super();
+		this.l = l;
+	}
+
+	public Solution(Solution s, int i) {
+		l = new ArrayList<WSset>();
+		for (WSset ws : s.getL()) {
+			WSset wsc = new WSset (ws,i); 
+			l.add(wsc);
+		}
+	}
+
+	public void setL(List<WSset> l) {
+		this.l = l;
+	}
+
+	public int cost() {
+		int cost = 0 ;
+		for(WSset e : l) {
+			cost = cost + e.getNbM();
+		}
+		return cost; 
+
+	}
+
+	@Override
+	public String toString() {
+		return "Solution [l=" + l + "]";
+	}
+
+	public List<Double> Loads(RTLB instance) {
+		List<Double> res = new ArrayList<Double>();
+
+		for(WSset e : l) {
+			double tmp =0;
+
+			for(int i =0 ; i<e.getSet().size()-1;i++) {
+
+				double a = instance.getT()[e.getSet().get(i)];
+
+				double b = instance.getTt()[e.getSet().get(i)][e.getSet().get(i+1)];
+
+				tmp = tmp+ a+b;
+
+			}
+
+			double a = instance.getT()[e.getSet().get(e.getSet().size()-1)];
+
+			double b = instance.getTt()[e.getSet().get(e.getSet().size()-1)][e.getSet().get(0)];
+
+
+			tmp = tmp + a + b;
+			res.add(tmp);
+		}
+		return res; 
+
+	}
+
+	Solution compatibleV1(int WSs, int WSd, RTLB instance,List<Integer> iinc){
+		Solution res = new Solution (this);
+		//System.out.println("a" + l.get(WSs).getSet());
+		// max num of ope
+		if (iinc.size()+ l.get(WSd).getSet().size() >instance.getM() ) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of ope");
+			return null;
+		}
+		// exclusion
+		
+		List<Integer> listEntiers = new ArrayList<Integer>();
+		listEntiers.addAll(l.get(WSd).getSet());
+		listEntiers.addAll(iinc);
+		if (exclusion(listEntiers, instance)) {
+			//			System.out.println("Pas possible de déplacer l'opération à cause des contraintes exclusion");
+			return null;
+		}   
+		for (int i : l.get(WSd).getSet()) {
+			for (int j : iinc) {
+				if (exclusion(j, i, instance)) {
+					//			System.out.println("Pas possible de déplacer l'opération à cause des contraintes exclusion");
+					return null;
+				}   
+			}  
+		}
+		//accessiblite
+		if(!instance.getA().isEmpty()){
+			List<Integer> inter = new ArrayList<Integer>();
+			inter.addAll(instance.getA().get(iinc.get(0)));
+			for(int ki = 1; ki<iinc.size();ki++ ) {
+				List<Integer> inter2 = instance.getA().get(iinc.get(ki));
+				inter.retainAll(inter2);
+			}
+
+			for(int ki : l.get(WSd).getSet()) {
+				List<Integer> inter2 = instance.getA().get(ki);
+				inter.retainAll(inter2);
+			}
+
+			if (inter.isEmpty()) {
+				//		System.out.println("Pas possible de déplacer l'opération à cause des contraintes de accessiblite");
+				return null;
+			}
+
+		}
+		// max num of machines
+		//destination
+		List<Integer> ll = new ArrayList<Integer>();
+		ll.addAll(iinc);
+		//System.out.println(ll);
+		ll.addAll( l.get(WSd).getSet());
+		//	System.out.println(ll);
+		List <Integer> lopt =  TSP_Dynamic_Prec.opt(ll,instance);
+		double cost = Hybrid.cost(lopt,instance.getTt()) + Hybrid.costT(lopt,instance.getT());
+		int nb = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb>instance.getMp()) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//source
+		List<Integer> ll2 = new ArrayList<Integer>();
+		ll2.addAll( l.get(WSs).getSet());
+		ll2.removeAll(iinc);
+
+		//	System.out.println("aa" + l.get(WSs).getSet());
+
+
+
+		List <Integer> lopt2 =  TSP_Dynamic_Prec.opt(ll2,instance);
+
+		cost = Hybrid.cost(lopt2,instance.getTt()) + Hybrid.costT(lopt2,instance.getT());
+		int nb2 = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb2>instance.getMp()) {
+			//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//if it is true it add it
+		res.getL().get(WSd).setSet(lopt);
+		res.getL().get(WSd).setNbM(nb);
+
+		if (!lopt2.isEmpty()) {
+			res.getL().get(WSs).setSet(lopt2);
+			res.getL().get(WSs).setNbM(nb2);	
+		}
+		else {
+			res.getL().remove(WSs);
+
+		}
+
+
+		return res;
+	}
+
+	Solution bestimprovingV1(List<Integer> iinc,RTLB instance) {
+		Solution best = new Solution (this);
+		int WSs = WS(iinc.get(0));
+		//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+		//iinc.retainAll(l.get(WSs).getSet());
+
+		int first = bigWsprec(iinc,instance, this);
+		int last = smallWssucc(iinc,instance, this);
+
+		if (last <= first) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+		} 
+		else {// first < last 
+			for (int WSd = first; WSd <(last+1);WSd++){
+				//System.out.println(best);
+				if (WSd != WSs) {
+
+					Solution neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+					if (neighbour != null) {
+						if (neighbour.cost() <= best.cost()){
+							//	System.out.println(best);
+							best = new Solution(neighbour);
+							//		System.out.println(best);
+						}
+					}
+				}}
+		}
+
+		return best;
+
+	}
+
+
+
+	Solution bestimprovingV1(RTLB instance) {
+		List<List<Integer>> parts = Partition(instance);
+		Solution best = new Solution (this);
+		for (List<Integer> iinc :parts) {
+
+
+
+			int WSs = WS(iinc.get(0));
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(iinc,instance, this);
+			int last = smallWssucc(iinc,instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+						if (neighbour != null) {
+							if (neighbour.cost() <= best.cost()){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+
+		}
+		return best;
+
+	}
+
+
+
+
+
+
+	Solution bestimprovingneighbourV1(RTLB instance) {
+		List<List<Integer>> parts = Partition(instance);
+		Solution best = new Solution (this);
+		for (List<Integer> iinc :parts) {
+
+
+
+			int WSs = WS(iinc.get(0));
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(iinc,instance, this);
+			int last = smallWssucc(iinc,instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+						if (neighbour != null) {
+							if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+
+		}
+		return best;
+
+
+	}
+
+	Solution firstimprovingneighbourV1(RTLB instance) {
+		List<List<Integer>> parts = Partition(instance);
+		Solution best = new Solution (this);
+		for (List<Integer> iinc :parts) {
+
+
+
+			int WSs = WS(iinc.get(0));
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(iinc,instance, this);
+			int last = smallWssucc(iinc,instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+						if (neighbour != null) {
+							if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+
+								return neighbour;
+								//	best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+
+		}
+		return best;
+
+
+	}
+
+	//best improving
+	//eviter sol
+	Solution deterDescenteV1 (RTLB instance) {
+		List<List<Integer>> parts = Partition(instance);
+		Solution best = new Solution(this);
+		boolean cont = true;
+		int iter = 0;
+		while ((iter<1000)&&(cont)) {
+			cont = false;
+			for (List<Integer> part :parts) {
+				Solution neighbour = best.bestimprovingV1(part,instance);
+				if (neighbour!=null) {
+					if (neighbour.cost() <= best.cost()){
+						//		System.out.println("ee "+neighbour.cost());
+						//			System.out.println(best);
+						best = new Solution(neighbour);
+						//		System.out.println(best);
+						cont = true;
+						iter++;
+					}
+
+					//		best = neighbour;        
+					//	cont = true;
+					//	break;
+				}
+			}
+		}
+		return best;
+	}
+
+
+	//merge
+
+	Solution deterDescenteV2 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		int iter = 0;
+		while ((iter<100)&&(cont)) {
+			cont = false;
+
+			Solution neighbour = best.bestimprovingV2(instance);
+			if (neighbour!=null) {
+				if (neighbour.cost() <= best.cost()){
+
+					//System.out.println(neighbour.cost());
+					//	System.out.println(best);
+					best = new Solution(neighbour);
+					//		System.out.println(best);
+					cont = true;
+					iter++;
+				}else {
+					System.out.println("no best2");
+				}
+
+				//		best = neighbour;        
+				//	cont = true;
+				//	break;
+			}
+		}
+		return best;
+	}
+
+	private Solution bestimprovingV2(RTLB instance) {
+		Solution best = new Solution (this);
+		Solution res = best; 
+		for (int i = 0 ; i<this.getL().size();i++) {
+
+
+			int WSs =i;
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							if (neighbour.cost() <= best.cost()){
+								//		if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+
+	private Solution bestimprovingneighbourV2(RTLB instance) {
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+
+
+			int WSs =i;
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							if (neighbour.cost() < best.cost()){
+								//		if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+	private Solution firstimprovingneighbourV2(RTLB instance) {
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+
+
+			int WSs =i;
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							if (neighbour.cost() < best.cost()){
+								//		if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+								return neighbour;
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+	//split
+
+	Solution deterDescenteV3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		int iter = 0;
+		while ((iter<100)&&(cont)) {
+			cont = false;
+
+			Solution neighbour = best.bestimprovingV3(instance);
+			if (neighbour!=null) {
+				if (neighbour.cost() <= best.cost()){
+
+					//	System.out.println(neighbour.cost());
+					//	System.out.println(best);
+					best = new Solution(neighbour);
+					//		System.out.println(best);
+					cont = true;
+					iter++;
+				}else {
+					System.out.println("no best3");
+				}
+
+				//		best = neighbour;        
+				//	cont = true;
+				//	break;
+			}
+		}
+		return best;
+	}
+
+	private Solution bestimprovingV3(RTLB instance) {
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+			for (int j = 0; j <this.getL().get(i).getSet().size();j++){
+
+				Solution neighbour = this.compatibleV3( i , j,  instance);
+				if (neighbour != null) {
+					if (neighbour.cost() <= best.cost()){
+						//		if (neighbour.cost() < best.cost()){
+						//	System.out.println(best);
+						best = new Solution(neighbour);
+						//		System.out.println(best);
+					}
+				}
+			}
+
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+	private Solution bestimprovingneighbourV3(RTLB instance) {
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+			for (int j = 0; j <this.getL().get(i).getSet().size();j++){
+
+				Solution neighbour = this.compatibleV3( i , j,  instance);
+				if (neighbour != null) {
+					if (neighbour.cost() < best.cost()){
+						//		if (neighbour.cost() < best.cost()){
+						//	System.out.println(best);
+						best = new Solution(neighbour);
+						//		System.out.println(best);
+					}
+				}
+			}
+
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+	private Solution firstimprovingneighbourV3(RTLB instance) {
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+			for (int j = 0; j <this.getL().get(i).getSet().size();j++){
+
+				Solution neighbour = this.compatibleV3( i , j,  instance);
+				if (neighbour != null) {
+					if (neighbour.cost() < best.cost()){
+						//		if (neighbour.cost() < best.cost()){
+						//	System.out.println(best);
+						return neighbour;
+						//		System.out.println(best);
+					}
+				}
+			}
+
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+
+	Solution deterDescenteV1V2V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.bestimprovingneighbourV1(instance);
+			Solution neighbour2 = neighbour1.bestimprovingneighbourV2(instance);
+			Solution neighbour3 = neighbour2.bestimprovingneighbourV3(instance);
+			if ((neighbour3.cost()<best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+
+	Solution deterDescenteV2V1V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.bestimprovingneighbourV2(instance);
+			Solution neighbour2 = neighbour1.bestimprovingneighbourV1(instance);
+			Solution neighbour3 = neighbour2.bestimprovingneighbourV3(instance);
+			if ((neighbour3.cost()<best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+
+	Solution deterDescentefiV1V2V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.firstimprovingneighbourV1(instance);
+			Solution neighbour2 = neighbour1.firstimprovingneighbourV2(instance);
+			Solution neighbour3 = neighbour2.firstimprovingneighbourV3(instance);
+			if ((neighbour3.cost()<best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+
+	Solution ILS (RTLB instance) {
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution(this);
+		Solution neighbour2 = new Solution(this);
+		Solution neighbour3 = new Solution(this);
+		boolean cont = true;
+		boolean cont2 = true;
+		for (int i =0; i <100; i++) {
+
+			while ((cont)) {
+				Solution neighbour1 = neighbour.firstimprovingneighbourV1(instance);
+				//Solution neighbour2 = neighbour1.firstimprovingneighbourV2(instance);
+				//	Solution neighbour3 = neighbour2.firstimprovingneighbourV3(instance);
+				if ((neighbour1.cost()<neighbour.cost())) {
+					neighbour = new Solution(neighbour1);
+				}else {
+					cont = false;
+				}
+			}
+
+			if (i%2 == 0) {
+				neighbour = neighbour.firstimprovingneighbourV2(instance);
+
+			}else {
+				neighbour = neighbour.firstimprovingneighbourV3(instance);
+
+			}
+
+		}
+
+
+		return best;
+	}
+
+
+
+	Solution deterDescentefiV2V1V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.firstimprovingneighbourV2(instance);
+			Solution neighbour2 = neighbour1.firstimprovingneighbourV1(instance);
+			Solution neighbour3 = neighbour2.firstimprovingneighbourV3(instance);
+			if ((neighbour3.cost()<best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+	Solution deterDescenteegV1V2V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.bestimprovingV1(instance);
+			Solution neighbour2 = neighbour1.bestimprovingV2(instance);
+			Solution neighbour3 = neighbour2.bestimprovingV3(instance);
+			if ((neighbour3.cost()<=best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+
+	Solution deterDescenteegV2V1V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		boolean cont = true;
+		while ((cont)) {
+			Solution neighbour1 = best.bestimprovingV2(instance);
+			Solution neighbour2 = neighbour1.bestimprovingV1(instance);
+			Solution neighbour3 = neighbour2.bestimprovingV3(instance);
+			if ((neighbour3.cost()<=best.cost())) {
+				best = new Solution(neighbour3);
+				System.out.println("Amélioration : "+best.cost());
+			}else {
+				cont = false;
+			}
+		}
+		return best;
+	}
+
+
+
+	Solution descentrndV(RTLB instance) {
+		Random rnd = new Random(0);
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		boolean cont = true;
+		int iter = 0;
+		while ((iter<50000000)&&(cont)) {
+			int vois = rnd.nextInt(3);
+			switch(vois) {
+			case 0 : neighbour = neighbour.bestimprovingV1(instance);
+			System.out.println("0");
+			break;
+			case 1 : neighbour = neighbour.bestimprovingV2(instance);
+			System.out.println("1");
+			break;
+			case 2 : neighbour = neighbour.bestimprovingV3(instance);
+			System.out.println("2");
+			break;}
+			System.out.println(neighbour);
+			System.out.println(neighbour.cost());
+			if (neighbour.cost() < best.cost()){
+				best = new Solution(neighbour);
+				System.out.println("Amélioration");
+			}	
+			iter++;
+		}
+		return best;
+	}
+
+
+
+
+
+	Solution tabuV1V2V3 (RTLB instance) {
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		boolean cont = true;
+		int iter = 0;
+		List<Solution> visited = new ArrayList<Solution>();
+		while ((iter<500000000)&&(cont)) {
+
+			Solution neighbour1 = neighbour.bestneighbourV1(visited ,instance);
+			Solution neighbour2 = neighbour.bestneighbourV2(visited ,instance);
+			Solution neighbour3 = neighbour.bestneighbourV3(visited ,instance);
+
+
+			if ((neighbour3.cost()<=neighbour1.cost())&&(neighbour3.cost()<=neighbour2.cost())) {
+				neighbour = new Solution(neighbour3);
+				System.out.println("V3");
+			}
+			if ((neighbour2.cost()<=neighbour1.cost())&&(neighbour2.cost()<=neighbour3.cost())) {
+				neighbour = new Solution(neighbour2);	
+				System.out.println("V2");
+			}
+
+			if ((neighbour1.cost()<=neighbour2.cost())&&(neighbour1.cost()<=neighbour3.cost())) {
+				neighbour = new Solution(neighbour1);
+				System.out.println("V1");
+			}
+
+			System.out.println(neighbour);
+			System.out.println(neighbour.cost());
+			System.out.println(best.cost());
+
+			if ((neighbour.cost()>=100000)||(visited.contains(neighbour))) {
+				cont = false;
+			}
+
+			visited.add(neighbour);
+			if (neighbour.cost() < best.cost()){
+				best = new Solution(neighbour);
+			}	
+			iter++;
+		}
+		return best;
+	}
+
+
+	Solution tabuV1V2V3fifo (RTLB instance) {
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		boolean cont = true;
+		int iter = 0;
+		LinkedList<Solution> visited = new LinkedList<Solution>();
+		while ((iter<500000000)&&(cont)) {
+
+			Solution neighbour1 = neighbour.bestneighbourV1(visited ,instance);
+			Solution neighbour2 = neighbour.bestneighbourV2(visited ,instance);
+			Solution neighbour3 = neighbour.bestneighbourV3(visited ,instance);
+
+
+			boolean cc= true;
+
+			if ((neighbour1.cost()<=neighbour2.cost())&&(neighbour1.cost()<=neighbour3.cost())) {
+				neighbour = new Solution(neighbour1);
+				System.out.println("V1");
+				cc = false;
+			}
+			//cc= true;
+			if ((neighbour2.cost()<=neighbour1.cost())&&(neighbour2.cost()<=neighbour3.cost())&&(cc == true)) {
+				neighbour = new Solution(neighbour2);	
+				System.out.println("V2");
+				cc = false;
+			}
+			//cc= true;
+			if ((neighbour3.cost()<=neighbour1.cost())&&(neighbour3.cost()<=neighbour2.cost())&&(cc == true)) {
+				neighbour = new Solution(neighbour3);
+				System.out.println("V3");
+			}
+
+			System.out.println(neighbour);
+			System.out.println(neighbour.cost());
+			System.out.println(best.cost());
+
+			if ((neighbour.cost()>=100000)||(visited.contains(neighbour))) {
+				cont = false;
+			}
+
+			visited.addLast(neighbour);
+
+			if (visited.size()>100) {
+				visited.removeFirst();
+			}
+			//System.out.println(visited);
+			if (neighbour.cost() < best.cost()){
+				best = new Solution(neighbour);
+			}	
+			iter++;
+		}
+		return best;
+	}
+
+	Solution SAV1(RTLB instance) {
+		Random rnd = new Random(1994);
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		double T = 1000;
+		while (T>0) {
+			int cpt = 0;
+			while (cpt<1000) {
+				Solution neighbour1 = neighbour.rndneighbourV1(rnd,instance);
+				if (neighbour1.cost()<=neighbour.cost()) {
+					neighbour = new Solution(neighbour1);
+					System.out.println("success1 "+T);
+					if (neighbour.cost()<best.cost()) {
+						best = new Solution(neighbour);
+						System.out.println("success1success1");
+					}
+				}else {
+					double p = Math.exp(-(neighbour1.cost()-neighbour.cost())/(double)T);
+					double pp = rnd.nextDouble();
+					if(pp<p) {
+						neighbour = new Solution(neighbour1);
+						System.out.println("success2 "+T);
+					}else {
+						System.out.println("fail "+T);
+					}
+				}
+				cpt++;
+			}
+			if (T>50) {
+				T = T - 0.25;}
+			else {
+				if(T>5)	{T= T - 0.125;}
+				else {
+					T = T - 0.01;
+				}
+			}
+		}
+		return best;
+	}
+	Solution SA_ALNS(RTLB instance, int seed) {
+		Random rnd = new Random(seed*1000);
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		Solution neighbour1 = null;
+		int cpt1 = 0;
+		int cpt2 = 0;
+		int cpt3 = 0;
+		int cpt11 = 0;
+		int cpt22 = 0;
+		int cpt33 = 0;
+		int p1 = 1;
+		int p2 = 1;
+		int p3 = 1;
+		int k = 0;
+		double T = 10;
+		while (T>0) {
+			int cpt = 0;
+			while (cpt<100) {
+				neighbour1 = null;
+				while(neighbour1==null) {
+				//	System.out.println("["+p1+" , "+p2+" , "+p3+"]"+T);
+                 //   System.out.println("Actual cost "+best.cost());
+					int pb = 1+rnd.nextInt(p1+p2+p3);
+					//				System.out.println("pb"+pb);
+					if ((pb>=1)&&(pb<=p1)) {
+					//	System.out.println("V1");
+						neighbour1 = neighbour.rndneighbourV1(rnd,instance);
+						k = 1;
+						//					System.out.println("V1");
+						cpt1++;
+					}
+					if ((pb>p1)&&(pb<=p1+p2)) {
+						//System.out.println("V2");
+						neighbour1 = neighbour.rndneighbourV2(rnd,instance);
+						k = 2;
+						//					System.out.println("V2");
+						cpt2++;
+
+					}
+					if ((pb>p1+p2)&&(pb<=p1+p2+p3)) {
+					//	System.out.println("V3");
+						neighbour1 = neighbour.rndneighbourV3(rnd,instance);
+						k = 3;
+						//					System.out.println("V3");
+						cpt3++;
+					}
+				}
+				if (neighbour1.cost()<=neighbour.cost()) {
+					neighbour = new Solution(neighbour1);
+					//	System.out.println("success1 "+T);
+					/*	switch(k) {
+					case 1 : p1++;
+					break;
+					case 2 : p2++;
+					break;
+					case 3 : p3++;
+					break;
+					}*/
+					if (neighbour.cost()<best.cost()) {
+						switch(k) {
+						case 1 : p1 = p1 +1;
+						break;
+						case 2 : p2 = p2 +1;
+						break;
+						case 3 : p3 = p3 +1;
+						break;
+						}
+						best = new Solution(neighbour);
+						//		System.out.println("success1success1");
+					}
+				}else {
+					double p = Math.exp(-(neighbour1.cost()-neighbour.cost())/(double)T);
+					double pp = rnd.nextDouble();
+					if(pp<p) {
+						neighbour = new Solution(neighbour1);
+						//	System.out.println("success2 "+T);
+						if (k==1) {
+
+							cpt11++;
+						}
+						if (k==2) {
+
+							cpt22++;
+						}
+						if (k==3) {
+
+							cpt33++;
+						}
+					}else {
+						//	System.out.println("fail "+T);
+					}
+				}
+				cpt++;
+			}
+			/*if (T>50) {
+				T = T - 0.25;}
+			else {
+				if(T>5)	{T= T - 0.125;}
+				else {
+					T = T - 0.01;
+				}
+			}*/
+			if (T>1) {
+				T = T - 0.0036;}
+			else
+				T = T - 0.004;
+
+		}
+	//	System.out.println(cpt1);
+	//	System.out.println(cpt2);
+	//	System.out.println(cpt3);
+	//	System.out.println(cpt11);
+	//	System.out.println(cpt22);
+//		System.out.println(cpt33);
+		return best;
+	}
+	private Solution rndneighbourV3(Random rnd, RTLB instance) {
+		Solution neighbour = null;
+		int cpt =0;
+		while ((cpt<100)&&(neighbour == null)) {
+			int i = rnd.nextInt(this.getL().size());
+			int j = rnd.nextInt(this.getL().get(i).getSet().size());
+			neighbour = this.compatibleV3( i , j,  instance);
+		}
+		return neighbour;
+	}
+
+	private Solution rndneighbourV1(Random rnd, RTLB instance) {
+		List<List<Integer>> parts = Partition(instance,rnd);
+		Solution neighbour = null;
+		while(neighbour == null) {		
+			List<Integer> iinc = parts.get(rnd.nextInt(parts.size()));
+			int WSs = WS(iinc.get(0));
+			int first = bigWsprec(iinc,instance, this);
+			int last = smallWssucc(iinc,instance, this);
+			if (last <= first) {
+				//System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				int WSd = first + rnd.nextInt(last-first);
+				if (WSd >= WSs) {
+					WSd++;
+				}
+				neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+			}
+		}
+		return neighbour;
+	}
+
+
+	private Solution rndneighbourV2(Random rnd, RTLB instance) {
+		Solution neighbour = null;
+		int cpt = 0;
+		while((neighbour==null)&&(cpt<100)) {
+			int i = rnd.nextInt(this.getL().size());
+			int WSs =i;
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				int WSd = first + rnd.nextInt(last-first);
+				if (WSd >= WSs) {
+					WSd++;
+				}
+				neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+			}
+			cpt++;
+		}
+		return neighbour;
+	}
+
+	private int min(int cost, int cost2, int cost3) {
+		if ((cost<=cost2)&&(cost<=cost3))
+			return cost;
+		if ((cost2<=cost)&&(cost2<=cost3))
+			return cost2;
+		if ((cost3<=cost)&&(cost3<=cost2))
+			return cost3;
+
+		return -1;
+
+	}
+
+	Solution alnsTabuV1V2V3 (RTLB instance) {
+		Random rnd = new Random(0);
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		boolean cont = true;
+		int iter = 0;
+		List<Solution> visited = new ArrayList<Solution>();
+		while ((iter<50000000)&&(cont)) {
+			int vois = rnd.nextInt(3);
+
+			switch(vois) {
+			case 0 : neighbour = neighbour.bestneighbourV1(visited ,instance);
+			case 1 : neighbour = neighbour.bestneighbourV2(visited ,instance);
+			case 2 : neighbour = neighbour.bestneighbourV3(visited ,instance);
+
+			}
+
+
+			//	 cont = false;
+			//	
+
+			System.out.println(neighbour);
+			System.out.println(neighbour.cost());
+			System.out.println(best.cost());
+			/*     neighbour = new Solution (neighbour3);
+	     System.out.println("V1 "+neighbour.cost());
+	     System.out.println(neighbour);
+
+
+			if ((neighbour2.cost()<=neighbour.cost())) {
+			neighbour = new Solution (neighbour2);
+		System.out.println("V3 "+neighbour.cost())	;
+				System.out.println(neighbour);
+		}
+
+
+
+	      if ((neighbour1.cost()<=neighbour.cost())) {
+				neighbour = new Solution (neighbour1);
+		System.out.println("V2 "+neighbour.cost());
+				System.out.println(neighbour);
+		}
+
+			 */
+
+			if ((neighbour.cost()>=100000)||(visited.contains(neighbour))) {
+				cont = false;
+			}
+
+			visited.add(neighbour);
+			if (neighbour.cost() < best.cost()){
+
+				//	System.out.println(neighbour.cost());
+				//	System.out.println(best);
+				best = new Solution(neighbour);
+				//		System.out.println(best);
+			}	
+			iter++;
+
+
+			//		best = neighbour;        
+			//	cont = true;
+			//	break;
+
+		}
+		return best;
+	}
+
+
+
+
+	Solution alnsV1V2V3 (RTLB instance) {
+		Random rnd = new Random(0);
+		Solution best = new Solution(this);
+		Solution neighbour = new Solution (this);
+		boolean cont = true;
+		int iter = 0;
+		List<Solution> visited = new ArrayList<Solution>();
+		while ((iter<50000000)&&(cont)) {
+			int vois = rnd.nextInt(3);
+			switch(vois) {
+			case 0 : neighbour = neighbour.bestimprovingV1(instance);
+			case 1 : neighbour = neighbour.bestimprovingV2(instance);
+			case 2 : neighbour = neighbour.bestimprovingV3(instance);
+			}
+
+
+			//	 cont = false;
+			//	
+
+			System.out.println(neighbour);
+			System.out.println(neighbour.cost());
+			System.out.println(best.cost());
+			/*     neighbour = new Solution (neighbour3);
+	     System.out.println("V1 "+neighbour.cost());
+	     System.out.println(neighbour);
+
+
+			if ((neighbour2.cost()<=neighbour.cost())) {
+			neighbour = new Solution (neighbour2);
+		System.out.println("V3 "+neighbour.cost())	;
+				System.out.println(neighbour);
+		}
+
+
+
+	      if ((neighbour1.cost()<=neighbour.cost())) {
+				neighbour = new Solution (neighbour1);
+		System.out.println("V2 "+neighbour.cost());
+				System.out.println(neighbour);
+		}
+
+			 */
+
+
+			//	visited.add(neighbour);
+			if (neighbour.cost() < best.cost()){
+
+				//	System.out.println(neighbour.cost());
+				//	System.out.println(best);
+				best = new Solution(neighbour);
+				//		System.out.println(best);
+			}	
+			iter++;
+
+
+			//		best = neighbour;        
+			//	cont = true;
+			//	break;
+
+		}
+		return best;
+	}
+
+
+
+
+
+	private Solution bestneighbourV3(List<Solution> visited, RTLB instance) {
+		Solution best = new Solution (this,0);
+		for (int i = 0 ; i<this.getL().size();i++) {
+			for (int j = 0; j <this.getL().get(i).getSet().size()-1;j++){
+
+				Solution neighbour = this.compatibleV3( i , j,  instance);
+				if (neighbour != null) {
+					if ((neighbour.cost() <= best.cost())&&(!visited.contains(neighbour))){
+						//		if (neighbour.cost() < best.cost()){
+						//	System.out.println(best);
+						best = new Solution(neighbour);
+						//		System.out.println(best);
+					}
+				}
+			}
+
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+	private Solution bestneighbourV2(List<Solution> visited, RTLB instance) {
+		Solution best = new Solution (this,0);
+		for (int i = 0 ; i<this.getL().size();i++) {
+
+
+			int WSs =i;
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							if ((neighbour.cost() <= best.cost())&&(!visited.contains(neighbour))){
+								//		if (neighbour.cost() < best.cost()){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+			//if (best.cost()<this.cost()) {
+
+		}
+		return best;
+	}
+
+	private Solution bestneighbourV1(List<Solution> visited, RTLB instance) {
+		List<List<Integer>> parts = Partition(instance);
+		Solution best = new Solution (this,0);
+		for (List<Integer> iinc :parts) {
+
+
+			//System.out.println("dd"+iinc.get(0));
+			int WSs = WS(iinc.get(0));
+			//System.out.println("dds"+WSs);
+			//	List<Integer> iinc = Sequence.incwithsAll(op,instance);
+			//iinc.retainAll(l.get(WSs).getSet());
+
+			int first = bigWsprec(iinc,instance, this);
+			int last = smallWssucc(iinc,instance, this);
+
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+						//	System.out.println(this);
+						//	System.out.println(WSs);
+						//		System.out.println(WSd);
+						//		System.out.println("l"+iinc);
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,iinc);
+						if (neighbour != null) {
+							if ((neighbour.cost() <= best.cost())&&(!visited.contains(neighbour))){
+								//	System.out.println(best);
+								best = new Solution(neighbour);
+								//		System.out.println(best);
+							}
+						}
+					}}
+			}
+
+		}
+		return best;
+	}
+
+
+
+	private Solution compatibleV3(int i, int j, RTLB instance) {
+
+		Solution voisin = new Solution (this);
+
+
+		List left = new ArrayList<Integer>();
+		List right = new ArrayList<Integer>();
+
+		split (left,right,j,this.getL().get(i),instance);
+		//	System.out.println("ed"+left+right+j+this.getL().get(i));
+		if (left.removeAll(right)) {
+			while(1==1) {
+				int fff = 0;
+
+			}
+		}
+
+		if (right.isEmpty()) return this;
+
+		if (this.getL().size()==instance.getSmax()) {
+			return null;
+		}
+
+
+		//left
+
+		List <Integer> lopt =  TSP_Dynamic_Prec.opt(left,instance);
+		double cost = Hybrid.cost(lopt,instance.getTt()) + Hybrid.costT(lopt,instance.getT());
+		int nb = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb>instance.getMp()) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//right
+		List <Integer> lopt2 =  TSP_Dynamic_Prec.opt(right,instance);
+
+		cost = Hybrid.cost(lopt2,instance.getTt()) + Hybrid.costT(lopt2,instance.getT());
+		int nb2 = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb2>instance.getMp()) {
+			//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//if it is true it add it
+
+
+
+
+		voisin.getL().remove(i);
+
+		voisin.getL().add(i,new WSset(lopt,nb));
+
+		voisin.getL().add(i+1,new WSset(lopt2,nb2));
+
+
+
+		return voisin;
+	}
+
+	private void split(List<Integer> left, List<Integer> right, int j, WSset wSset, RTLB instance) {
+
+		//System.out.println("1"+wSset);
+		for(int i = 0;i<wSset.getSet().size();i++) {
+			if (i<=j) {
+				left.add(wSset.getSet().get(i));
+			}else {
+				if (inc(wSset.getSet().get(i),left,instance)) {
+					//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of macossible de déplacer ossible de déplacer l'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of macl'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of machines"+right+"f"+left);
+					left.addAll(right);
+					right.clear();
+					//right = new ArrayList<Integer>()	;
+					//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of macossible de déplacer ossible de déplacer l'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of macl'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of machines"+right+"f"+left);
+					left.add(wSset.getSet().get(i));
+					//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of macossible de déplacer ossible de déplacer l'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of macl'opération à cause des contraintes max num of macossible de déplacer l'opération à cause des contraintes max num of machines"+right+"f"+left);
+				}else {
+					right.add(wSset.getSet().get(i));
+				}
+			}
+		}
+		//	System.out.println("1z"+left);
+		//	System.out.println("1g"+right);
+	}
+
+	private List<Integer> prec(List<Integer> right, int i, RTLB instance) {
+		List<Integer> res = new ArrayList<Integer>();
+
+		for (int  k : right) {
+			for(Couple c : instance.getP()) {
+				if ((c.getA()== k)&& (c.getB()== i)) {
+
+					res.add(k);
+				}
+
+			}
+
+		}
+
+		// TODO Auto-generated method stub
+		return res;
+	}
+
+	private boolean inc(int i, List<Integer> left, RTLB instance) {
+		for(int k:left) {
+			for(Couple c : instance.getI()) {
+				if (((c.getA() == k)&&(c.getB() == i))||((c.getA() == i)&&(c.getB() == k))) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	List<List<Integer>> Partition (RTLB instance, Random rnd) {
+		List<List<Integer>> res = new ArrayList<List<Integer>>();
+		List<List<Integer>> res_aux = new ArrayList<List<Integer>>();
+		for (int i = 0 ; i<instance.getN();i++) {
+			if (notPart(i,res)) {
+				List<Integer> iinc = Sequence.incwithsAll(i,instance);
+				res.add(iinc);
+			}
+		}
+		mergePrec(res,instance);
+
+		//orderPrec(res,instance);
+		for (int i =0 ;i<res.size();i++) {
+			res_aux.add(rndOrder(res.get(i),rnd,instance));
+		//	System.out.println(res_aux.get(i));
+		}
+		return res_aux;
+	}
+
+ List <Integer> rndOrder(List<Integer> lll, Random rnd, RTLB instance) {
+		List <Integer> seq = new ArrayList<Integer>();
+		int n = instance.getN();
+
+		int marked [] = new int [n];
+
+		for(int i=0;i<n;i++) {
+			marked[i] = 1;
+		}
+
+		for (int i : lll) {
+			marked[i] = 0;
+		}
+
+		while (seq.size()<lll.size()) {
+			int k = Sequence.rndprecLess(instance,marked,rnd);
+			seq.add(k);
+			//	System.out.println(k);
+			marked[k] = 1;
+
+
+		}
+		//lll = seq;
+		//lll = new ArrayList<Integer>();
+		//lll.addAll(seq);
+		return seq;
+	}
+
+	private void orderPrec(List<List<Integer>> res, RTLB instance) {
+		for (List<Integer> l : res) {
+			l = TSP_Dynamic_Prec.opt(l,instance);
+		}
+
+	}
+
+	private void mergePrec(List<List<Integer>> res,RTLB instance) {
+		for (int i = 0; i<res.size(); i++) {
+			for (int j = 0; j<res.size(); j++) {
+				if((i!=j)&&(prec(res.get(i),res.get(j),instance)&&prec(res.get(j),res.get(i),instance))) {
+					res.get(i).addAll(res.get(j));
+					res.remove(j);
+				}
+			}}
+	}
+
+	private boolean prec(List<Integer> right, List<Integer> list, RTLB instance) {
+		for (int i : right) {
+			for (int j : list) {
+				for (Couple c : instance.getP()) {
+					if ((c.getA()==i)&&(c.getB()==j)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean notPart(int i, List<List<Integer>> res) {
+		boolean r = true;
+		for(List<Integer> list : res) {
+			if (list.contains(i)) {
+				return false;
+			}
+		}
+		return r;
+	}
+
+	private int WS(int op) {
+		int res = -1;
+		for (int i = 0; i<this.getL().size();i++) {
+			if (this.getL().get(i).getSet().contains(op)) {
+				res = i;
+				break;
+			}
+		}
+		return res;
+	}
+
+	private int smallWssucc(List<Integer> iinc, RTLB instance, Solution solution) {
+		int res = solution.getL().size()-1;
+
+		for (int i = solution.getL().size()-2; i>-1;i--) {
+
+			ll : for (int j : solution.getL().get(i).getSet()) {
+
+				for (int k : iinc) {
+
+					if  (prec(k,j,instance)) {
+						res =i;
+						break ll;
+
+
+					}
+
+				}
+
+			}
+
+
+		}
+
+
+
+		return res;
+	}
+
+	private int bigWsprec(List<Integer> iinc, RTLB instance, Solution solution) {
+		int res = 0;
+		for (int i = 1; i<solution.getL().size();i++) {
+			ll : for (int j : solution.getL().get(i).getSet()) {
+				for (int k : iinc) {
+					if  (prec(j,k,instance)) {
+						res =i;
+						break ll;
+					}
+				}
+			}
+		}
+		return res;
+	}
+
+	private boolean prec(int j, int k, RTLB instance) {
+		boolean res = false;
+		for (Couple c : instance.getP()) {
+			if ((c.getA()==j) &&(c.getB()==k)) {
+				res = true;
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	private boolean exclusion(int j, int k, RTLB instance) {
+		boolean res = false;
+		for (Couple c : instance.getE()) {
+			if ((c.getA()==j) &&(c.getB()==k)) {
+				res = true;
+				break;
+			}
+			if ((c.getA()==k) &&(c.getB()==j)) {
+				res = true;
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	private boolean exclusion(List<Integer> list, RTLB instance) {
+		boolean res = false;
+		for (List<Integer> c : instance.getE()) {
+			if (list.containsAll(c)) {
+				res = true;
+				break;
+			}		
+		}
+		return res;
+	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((l == null) ? 0 : l.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		Solution other = (Solution) obj;
+		if (!(other.getL().size()==this.getL().size())) {
+			return false;
+		}
+		if (other.getL().containsAll(this.getL())) {
+			return true;
+		}
+		return false;
+	}
+	public boolean repair(RTLB instance) {
+		//System.out.println("Start repair procedure");
+		boolean res = false; 
+		Solution best = new Solution (this);
+		for (int i = 0 ; i<this.getL().size();i++) {
+			int WSs =i;
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							this.setL(neighbour.getL());
+							//System.out.println("End repair procedure 1");
+							return true;
+						}
+					}
+				}
+			}
+		}
+		//System.out.println("End repair procedure 0");
+		return res;
+	}
+
+	public Sequence toSolution() {
+		List<Integer> res = new ArrayList<Integer>();
+		for(WSset ws : l) {
+			res.addAll(ws.getSet());
+		}
+		return new Sequence(res);
+	}
+	
+	public List<Integer> toList() {
+		List<Integer> res = new ArrayList<Integer>();
+		for(WSset ws : l) {
+			res.addAll(ws.getSet());
+		}
+		return res;
+	}
+}

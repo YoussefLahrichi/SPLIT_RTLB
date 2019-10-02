@@ -1,0 +1,368 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.io.Serializable;
+
+public class Solution implements Serializable{
+	private static final long serialVersionUID = 1L;
+	List<WSset> l;
+	Solution (Solution s) {
+		l = new ArrayList<WSset>();
+		for (WSset ws : s.getL()) {
+			WSset wsc = new WSset (ws); 
+			l.add(wsc);
+		}
+	}
+	public List<WSset> getL() {
+		return l;
+	}
+	public Solution() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public Solution(List<WSset> l) {
+		super();
+		this.l = l;
+	}
+	public Solution(Solution s, int i) {
+		l = new ArrayList<WSset>();
+		for (WSset ws : s.getL()) {
+			WSset wsc = new WSset (ws,i); 
+			l.add(wsc);
+		}
+	}
+	public void setL(List<WSset> l) {
+		this.l = l;
+	}
+	public int cost() {
+		int cost = 0 ;
+		for(WSset e : l) {
+			cost = cost + e.getNbM();
+		}
+		return cost; 
+
+	}
+	@Override
+	public String toString() {
+		return "Solution [l=" + l + "]";
+	}
+	public List<Double> Loads(RTLB instance) {
+		List<Double> res = new ArrayList<Double>();
+		for(WSset e : l) {
+			double tmp =0;
+			for(int i =0 ; i<e.getSet().size()-1;i++) {
+				double a = instance.getT()[e.getSet().get(i)];
+				double b = instance.getTt()[e.getSet().get(i)][e.getSet().get(i+1)];
+				tmp = tmp+ a+b;
+			}
+			double a = instance.getT()[e.getSet().get(e.getSet().size()-1)];
+			double b = instance.getTt()[e.getSet().get(e.getSet().size()-1)][e.getSet().get(0)];
+			tmp = tmp + a + b;
+			res.add(tmp);
+		}
+		return res; 
+	}
+
+	Solution compatibleV1(int WSs, int WSd, RTLB instance,List<Integer> iinc){
+		Solution res = new Solution (this);
+		//System.out.println("a" + l.get(WSs).getSet());
+		// max num of ope
+		if (iinc.size()+ l.get(WSd).getSet().size() >instance.getM() ) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of ope");
+			return null;
+		}
+		// exclusion
+
+		List<Integer> listEntiers = new ArrayList<Integer>();
+		listEntiers.addAll(l.get(WSd).getSet());
+		listEntiers.addAll(iinc);
+		if (exclusion(listEntiers, instance)) {
+			//			System.out.println("Pas possible de déplacer l'opération à cause des contraintes exclusion");
+			return null;
+		}   
+		/*	for (int i : l.get(WSd).getSet()) {
+			for (int j : iinc) {
+				if (exclusion(j, i, instance)) {
+					//			System.out.println("Pas possible de déplacer l'opération à cause des contraintes exclusion");
+					return null;
+				}   
+			}  
+		}*/
+		//accessiblite
+		if(!instance.getA().isEmpty()){
+			List<Integer> inter = new ArrayList<Integer>();
+			inter.addAll(instance.getA().get(iinc.get(0)));
+			for(int ki = 1; ki<iinc.size();ki++ ) {
+				List<Integer> inter2 = instance.getA().get(iinc.get(ki));
+				inter.retainAll(inter2);
+			}
+
+			for(int ki : l.get(WSd).getSet()) {
+				List<Integer> inter2 = instance.getA().get(ki);
+				inter.retainAll(inter2);
+			}
+
+			if (inter.isEmpty()) {
+				//		System.out.println("Pas possible de déplacer l'opération à cause des contraintes de accessiblite");
+				return null;
+			}
+
+		}
+		// max num of machines
+		//destination
+		List<Integer> ll = new ArrayList<Integer>();
+		ll.addAll(iinc);
+		//System.out.println(ll);
+		ll.addAll( l.get(WSd).getSet());
+		//	System.out.println(ll);
+		List <Integer> lopt =  TSP_Dynamic_Prec.opt(ll,instance);
+		double cost = Hybrid.cost(lopt,instance.getTt()) + Hybrid.costT(lopt,instance.getT());
+		int nb = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb>instance.getMp()) {
+			//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//source
+		List<Integer> ll2 = new ArrayList<Integer>();
+		ll2.addAll( l.get(WSs).getSet());
+		ll2.removeAll(iinc);
+
+		//	System.out.println("aa" + l.get(WSs).getSet());
+
+
+
+		List <Integer> lopt2 =  TSP_Dynamic_Prec.opt(ll2,instance);
+
+		cost = Hybrid.cost(lopt2,instance.getTt()) + Hybrid.costT(lopt2,instance.getT());
+		int nb2 = (int) Math.ceil((double)cost/instance.getC());	
+		if (nb2>instance.getMp()) {
+			//System.out.println("Pas possible de déplacer l'opération à cause des contraintes max num of machines");
+			return null;
+		}
+		//if it is true it add it
+		res.getL().get(WSd).setSet(lopt);
+		res.getL().get(WSd).setNbM(nb);
+
+		if (!lopt2.isEmpty()) {
+			res.getL().get(WSs).setSet(lopt2);
+			res.getL().get(WSs).setNbM(nb2);	
+		}
+		else {
+			res.getL().remove(WSs);
+
+		}
+
+
+		return res;
+	}
+
+
+
+
+	//best improving
+	//eviter sol
+
+	//merge
+
+
+
+
+	
+
+
+	List<List<Integer>> Partition (RTLB instance, Random rnd) {
+		List<List<Integer>> res = new ArrayList<List<Integer>>();
+		List<List<Integer>> res_aux = new ArrayList<List<Integer>>();
+		for (int i = 0 ; i<instance.getN();i++) {
+			if (notPart(i,res)) {
+				List<Integer> iinc = Sequence.incwithsAll(i,instance);
+				res.add(iinc);
+			}
+		}
+		mergePrec(res,instance);
+
+		//orderPrec(res,instance);
+		for (int i =0 ;i<res.size();i++) {
+			res_aux.add(rndOrder(res.get(i),rnd,instance));
+			//	System.out.println(res_aux.get(i));
+		}
+		return res_aux;
+	}
+
+	List <Integer> rndOrder(List<Integer> lll, Random rnd, RTLB instance) {
+		List <Integer> seq = new ArrayList<Integer>();
+		int n = instance.getN();
+
+		int marked [] = new int [n];
+
+		for(int i=0;i<n;i++) {
+			marked[i] = 1;
+		}
+
+		for (int i : lll) {
+			marked[i] = 0;
+		}
+
+		while (seq.size()<lll.size()) {
+			int k = Sequence.rndprecLess(instance,marked,rnd);
+			seq.add(k);
+			//	System.out.println(k);
+			marked[k] = 1;
+
+
+		}
+		//lll = seq;
+		//lll = new ArrayList<Integer>();
+		//lll.addAll(seq);
+		return seq;
+	}
+
+	private void mergePrec(List<List<Integer>> res,RTLB instance) {
+		for (int i = 0; i<res.size(); i++) {
+			for (int j = 0; j<res.size(); j++) {
+				if((i!=j)&&(prec(res.get(i),res.get(j),instance)&&prec(res.get(j),res.get(i),instance))) {
+					res.get(i).addAll(res.get(j));
+					res.remove(j);
+				}
+			}}
+	}
+
+	private boolean prec(List<Integer> right, List<Integer> list, RTLB instance) {
+		for (int i : right) {
+			for (int j : list) {
+				for (Couple c : instance.getP()) {
+					if ((c.getA()==i)&&(c.getB()==j)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean notPart(int i, List<List<Integer>> res) {
+		boolean r = true;
+		for(List<Integer> list : res) {
+			if (list.contains(i)) {
+				return false;
+			}
+		}
+		return r;
+	}
+
+	private int smallWssucc(List<Integer> iinc, RTLB instance, Solution solution) {
+		int res = solution.getL().size()-1;
+		for (int i = solution.getL().size()-2; i>-1;i--) {
+			ll : for (int j : solution.getL().get(i).getSet()) {
+				for (int k : iinc) {
+					if  (prec(k,j,instance)) {
+						res =i;
+						break ll;
+					}
+				}
+			}
+		}
+		return res;
+	}
+
+	private int bigWsprec(List<Integer> iinc, RTLB instance, Solution solution) {
+		int res = 0;
+		for (int i = 1; i<solution.getL().size();i++) {
+			ll : for (int j : solution.getL().get(i).getSet()) {
+				for (int k : iinc) {
+					if  (prec(j,k,instance)) {
+						res =i;
+						break ll;
+					}
+				}
+			}
+		}
+		return res;
+	}
+
+	private boolean prec(int j, int k, RTLB instance) {
+		boolean res = false;
+		for (Couple c : instance.getP()) {
+			if ((c.getA()==j) &&(c.getB()==k)) {
+				res = true;
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	private boolean exclusion(List<Integer> list, RTLB instance) {
+		boolean res = false;
+		for (List<Integer> c : instance.getE()) {
+			if (list.containsAll(c)) {
+				res = true;
+				break;
+			}		
+		}
+		return res;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((l == null) ? 0 : l.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		Solution other = (Solution) obj;
+		if (!(other.getL().size()==this.getL().size())) {
+			return false;
+		}
+		if (other.getL().containsAll(this.getL())) {
+			return true;
+		}
+		return false;
+	}
+	
+	public boolean repair(RTLB instance) {
+		//System.out.println("Start repair procedure");
+		boolean res = false; 
+		for (int i = 0 ; i<this.getL().size();i++) {
+			int WSs =i;
+			int first = bigWsprec(this.getL().get(i).getSet(),instance, this);
+			int last = smallWssucc(this.getL().get(i).getSet(),instance, this);
+			if (last <= first) {
+				//	System.out.println("Pas possible de déplacer l'opération à cause des contraintes de précédence");
+			} 
+			else {// first < last 
+				for (int WSd = first; WSd <(last+1);WSd++){
+					//System.out.println(best);
+					if (WSd != WSs) {
+						Solution neighbour = this.compatibleV1( WSs, WSd,  instance,this.getL().get(i).getSet());
+						if (neighbour != null) {
+							this.setL(neighbour.getL());
+							//System.out.println("End repair procedure 1");
+							return true;
+						}
+					}
+				}
+			}
+		}
+		//System.out.println("End repair procedure 0");
+		return res;
+	}
+	public Sequence toSolution() {
+		List<Integer> res = new ArrayList<Integer>();
+		for(WSset ws : l) {
+			res.addAll(ws.getSet());
+		}
+		return new Sequence(res);
+	}
+
+	public List<Integer> toList() {
+		List<Integer> res = new ArrayList<Integer>();
+		for(WSset ws : l) {
+			res.addAll(ws.getSet());
+		}
+		return res;
+	}
+}

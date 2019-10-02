@@ -1,0 +1,1339 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+
+import ilog.concert.*;
+import ilog.cplex.*;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.nio.file.Files;
+
+import java.nio.file.Paths;
+public class RTLB {
+
+	private String text;
+	private int n;
+	private int smax;
+	private List<Couple> P ;
+	private int Mp ;
+	private int M ;
+	private int Na ;
+	private double[] t;
+	private double[][]tt ;
+	private double C;
+	private List<List<Integer>> E ;
+	private List<Couple> I ;
+	private List<List<Integer>> A ;
+
+	IloNumVar[][][] x ;
+	IloNumVar[] y ;
+	IloNumVar[][][] z ;
+	IloNumVar[][] w ;
+	IloNumVar[][] v ;
+	IloNumVar[][] u ;
+
+	public String getText() {
+		return text;
+	}
+
+	public void setText(String text) {
+		this.text = text;
+	}
+
+	public static void main(String[] args) throws IOException, ClassNotFoundException{
+		long startTime = System.nanoTime();
+		  int i = 8;
+			RTLB instance = new RTLB ("a"+i+".gms","e");
+			Random rnd = new Random(0);
+			Solution sol = ILS_SPLIT.initialSolutionM1(instance,rnd);
+			FileOutputStream fos = new FileOutputStream("initialSolM1_"+i+".ser");
+			try {
+				ObjectOutputStream oos = new ObjectOutputStream(fos);
+				oos.writeObject(sol);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println((System.nanoTime()-startTime)/1000000000.);	
+	}
+
+
+
+
+
+public RTLB(int n, int smax, List<Couple> p, int mp, int m, double[] t, double[][] tt, double c) {
+	super();
+	this.n = n;
+	this.smax = smax;
+	P = p;
+	Mp = mp;
+	M = m;
+	this.t = t;
+	this.tt = tt;
+	C = c;
+	A = new ArrayList<List<Integer>> ();
+	E = new ArrayList<List<Integer>>();
+	I = new ArrayList<Couple>();
+}
+
+public RTLB(String fileName,String g){
+	text = fileName;
+	List<String> lines;
+	try {
+		lines = Files.readAllLines(Paths.get(fileName));
+		/*for (String line : lines) {
+s
+		         System.out.println(line);
+
+		        }*/
+
+		this.n = Integer.parseInt(lines.get(0));
+		this.smax = Integer.parseInt(lines.get(1).substring(lines.get(1).indexOf("/")+1, lines.get(1).lastIndexOf("/")));
+		this.Mp = Integer.parseInt(lines.get(3).substring(lines.get(3).indexOf("/")+1, lines.get(3).lastIndexOf("/")));
+		this.M = Integer.parseInt(lines.get(2).substring(lines.get(2).indexOf("/")+1, lines.get(2).lastIndexOf("/")));
+		this.C = Integer.parseInt(lines.get(4).substring(lines.get(4).indexOf("/")+1, lines.get(4).lastIndexOf("/")));
+		t = new double [n];
+		tt = new double [n][n];
+		P = new ArrayList<Couple>();
+		for (int k = 7; k<7+n;k++){
+			t[k-7] =  Double.parseDouble(lines.get(k).substring(lines.get(k).indexOf("=")+1).trim());
+		}
+		int ip = n+9;
+		this.Na = Integer.parseInt(lines.get(ip).substring(lines.get(ip).indexOf("*")+1,lines.get(ip).lastIndexOf("/")));
+		//	this .Na = 8;
+		this.A = new ArrayList<List<Integer>>();
+		ip = ip+2;
+		for (int i = 0 ; i< n ; i++) {
+			A.add(new ArrayList<Integer>());
+		}
+		while(lines.get(ip).indexOf("/")== -1){
+			int i = Integer.parseInt(lines.get(ip).substring(0, lines.get(ip).lastIndexOf(".")).trim())-1;
+			int pos = Integer.parseInt(lines.get(ip).substring( lines.get(ip).lastIndexOf(".")+1).trim())-1;
+			A.get(i).add(pos);
+			ip++;
+		}
+		ip = ip+4;
+		while(lines.get(ip).indexOf("/")== -1){
+			int i = Integer.parseInt(lines.get(ip).substring(0, lines.get(ip).lastIndexOf(".")).trim())-1;
+			int pos = Integer.parseInt(lines.get(ip).substring( lines.get(ip).lastIndexOf(".")+1).trim())-1;
+			P.add(new Couple (i, pos ) );
+			ip++;
+		}
+		ip = ip +3;
+		E = new ArrayList<List<Integer>>();
+		I = new ArrayList<Couple>();
+		while(lines.get(ip).indexOf("/")== -1){
+			int i = Integer.parseInt(lines.get(ip).substring( 0,lines.get(ip).lastIndexOf(".")).trim()) ;
+			List<Integer> L = new ArrayList<Integer>();
+			while ((lines.get(ip).indexOf("/")== -1)&&( i == Integer.parseInt(lines.get(ip).substring( 0,lines.get(ip).lastIndexOf(".")).trim()))) {
+				int pos = Integer.parseInt(lines.get(ip).substring( lines.get(ip).lastIndexOf(".")+1).trim())-1;
+				L.add(pos);
+				ip++;
+			}
+			for(int a = 1; a< L.size();a++) {
+				I.add(new Couple (L.get(a-1),L.get(a) ) );
+			}
+		}
+		ip = ip +3;
+		while(lines.get(ip).indexOf("/")== -1){
+			int i = Integer.parseInt(lines.get(ip).substring( 0,lines.get(ip).lastIndexOf(".")).trim()) ;
+			List<Integer> L = new ArrayList<Integer>();
+			while ((lines.get(ip).indexOf("/")== -1)&&( i == Integer.parseInt(lines.get(ip).substring( 0,lines.get(ip).lastIndexOf(".")).trim()))) {
+				int pos = Integer.parseInt(lines.get(ip).substring( lines.get(ip).lastIndexOf(".")+1).trim())-1;
+				L.add(pos);
+				ip++;
+			}
+			
+					E.add(L);
+		
+		}
+		ip = ip +3;
+		while(lines.get(ip).indexOf("/")== -1){
+			int i = Integer.parseInt(lines.get(ip).substring(0, lines.get(ip).indexOf(".")).trim())-1;
+			int j = Integer.parseInt(lines.get(ip).substring(lines.get(ip).indexOf(".")+1, lines.get(ip).lastIndexOf("=")).trim())-1;
+			double pos = Double.parseDouble(lines.get(ip).substring( lines.get(ip).lastIndexOf("=")+1).trim());
+			tt[i][j]= pos;
+			ip++;
+		}
+		for (int i = 0; i<n; i++) {
+			tt[i][i]=0.0;
+		}
+
+		//System.out.println();
+
+		// System.out.println(tt[15][17]);
+
+		//     System.out.println(P);
+
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+}
+
+
+
+
+public RTLB() {
+	n = 7;
+	smax = 5;
+	P = new ArrayList<Couple>();
+	P.add(new Couple (0,2));
+	P.add(new Couple (1,2));
+	P.add(new Couple (2,3));
+	P.add(new Couple (3,4));
+	P.add(new Couple (4,5));
+	P.add(new Couple (4,6));
+	I = new ArrayList<Couple>();
+	E = new ArrayList<List<Integer>>();
+	A = new ArrayList<List<Integer>>();
+
+	Mp = 4;
+	M = 4;
+	double[][] tt0 = {{0,0.5,1,1,1,1,1},{1.5,0,0.5,1,1,1,1},{0.5,0.5,0,1,1,1,1},
+			{1,1,1,0,0.5,1,1},{1,1,1,0.5,0,1,1},{1,1,1,1,1,0,0.5},
+			{1,1,1,1,1,0.5,0}
+	};
+
+	tt= tt0;
+	double[] t0 = {2.5,1,0.5,1.5,2.5,3,1};
+	t =t0;
+	C = 2.5;
+}
+
+
+public int getN() {
+	return n;
+}
+
+
+public void setN(int n) {
+	this.n = n;
+}
+
+
+public int getSmax() {
+	return smax;
+}
+
+
+public void setSmax(int smax) {
+	this.smax = smax;
+}
+
+
+public List<Couple> getP() {
+	return P;
+}
+
+
+public void setP(List<Couple> p) {
+	P = p;
+}
+
+
+public int getMp() {
+	return Mp;
+}
+
+
+public void setMp(int mp) {
+	Mp = mp;
+}
+
+
+public int getM() {
+	return M;
+}
+
+
+public void setM(int m) {
+	M = m;
+}
+
+
+public double[] getT() {
+	return t;
+}
+
+
+public void setT(double[] t) {
+	this.t = t;
+}
+
+
+public double[][] getTt() {
+	return tt;
+}
+
+
+public void setTt(double[][] tt) {
+	this.tt = tt;
+}
+
+public void setTt(int i, int j, double x) {
+	tt[i][j] = x;
+}
+
+public double getC() {
+	return C;
+}
+
+
+public void setC(double c) {
+	C = c;
+}
+
+
+
+
+public void solveModel(){
+
+
+	try {
+		IloCplex model = new IloCplex();
+		// Nous venons de cr�er un mod�le vide
+		IloNumVar[][][] x = new IloNumVar[n][smax][M];
+		IloNumVar[] y = new IloNumVar [smax];
+		IloNumVar[][][] z = new IloNumVar [n][n][smax];
+		IloNumVar[][] w = new IloNumVar [n][smax];
+		IloNumVar[][] v = new IloNumVar [smax][Mp+1];
+		IloNumVar[][] u = new IloNumVar [smax][Na];
+
+
+		for (int k = 0; k<smax;k++) {
+			for(int a = 0; a<Na;a++) {
+				u[k][a] = model.numVar(0,1,IloNumVarType.Int,"u("+k+")"+"("+a+")");
+			}
+
+		}
+
+
+
+		for(int i =0;i<n;i++){
+			for(int j =preproc.e(i,this) ; j < (preproc.l(i,this)+1) ; j++){
+				for(int s = 0; s < preproc.M(j, this) ; s++ )
+				{
+					x[i][j][s] = model.numVar(0,1,IloNumVarType.Int,"x("+i+")("+j+")("+s+")");
+
+				}}}
+
+		for(int j = 0; j < smax ; j++){
+
+			y[j] = model.numVar(0,1,IloNumVarType.Int,"y("+j+")");
+
+		}
+
+		for(int i =0;i<n;i++){
+			for(int j = 0; j <n ; j++){
+				if(i != j) {
+					for(int k = Max(preproc.e(i,this),preproc.e(j,this)); k <( Min(preproc.l(i,this),preproc.l(j,this))+1) ; k++ )
+					{
+
+						z[i][j][k] = model.numVar(0,1,IloNumVarType.Int,"z("+i+")("+j+")("+k+")");
+					}
+
+				}}}
+
+
+		for(int i =0;i<n;i++){
+			for(int j = preproc.e(i,this); j < (preproc.l(i,this)+1) ; j++){
+
+				w[i][j] = model.numVar(0,1,IloNumVarType.Int,"w("+i+")"+"("+j+")");
+
+			}}
+
+
+		for(int i =0;i<smax;i++){
+			for(int j = 1; j < (Mp+1) ; j++){
+
+				v[i][j] = model.numVar(0,1,IloNumVarType.Int,"v("+i+")"+"("+j+")");
+
+
+			}}
+
+
+
+		IloLinearNumExpr obj = model.linearNumExpr();
+
+
+		for(int i =0;i<smax;i++){
+			for(int j = 1; j < (Mp+1) ; j++){
+
+				obj.addTerm(j,v[i][j]);
+
+			}}
+
+		model.addMinimize(obj);
+
+
+		List<IloRange> constraints = new ArrayList<IloRange>();
+
+
+
+		//(7)    		[10]
+
+
+		for(int k =0;k<smax;k++){
+
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+			for(int i =0;i<n;i++){
+
+				if((preproc.e(i,this)<=k)&&(k<=preproc.l(i,this))) {
+
+					for(int s = 0; s< preproc.M(k, this);s++){
+						constraint.addTerm(t[i], x[i][k][s]);
+					}
+				}}
+
+			for(int i =0;i<n;i++){
+				for(int j =0;j<n;j++){
+					if((i!=j)&&(Max(preproc.e(i,this),preproc.e(j,this))<=k)&&(k<=Min(preproc.l(i,this),preproc.l(j,this))))
+					{	constraint.addTerm(tt[i][j], z[i][j][k]);
+					}
+				}
+			}
+
+			for(int p =1;p<(Mp+1);p++){
+
+				constraint.addTerm(-C*p, v[k][p]);
+			}
+
+			constraints.add(model.addLe(constraint,0));
+
+		}
+
+
+		System.out.println("size1: "+constraints.size());
+
+
+		//(1)           [4]
+
+		for(int i =0;i<n;i++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int j = preproc.e(i,this); j < (preproc.l(i,this)+1) ; j++){
+				for(int s = 0; s < preproc.M(j, this) ; s++ )
+				{
+					constraint.addTerm(1,x[i][j][s]);
+
+				}}
+			constraints.add(model.addEq(constraint, 1));
+		}
+		System.out.println("size2: "+constraints.size());
+		//(2)			[5]
+
+		for(int j = 0; j < smax ; j++){
+			for(int s = 0; s < preproc.M(j, this) ; s++ )
+			{
+				IloLinearNumExpr constraint = model.linearNumExpr();
+				for(int i =0;i<n;i++){
+					if((preproc.e(i,this)<=j)&&(j<=preproc.l(i,this))) {
+						constraint.addTerm(1,x[i][j][s]);
+
+					}
+				}
+				constraints.add(model.addLe(constraint , 1));
+
+			}
+
+		}
+		System.out.println("size3: "+constraints.size());
+		//(3)			[6]
+
+		for(int j = 0; j < smax ; j++){
+			for(int s = 0; s < (preproc.M(j, this)-1) ; s++ )
+			{
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+				for(int i =0;i<n;i++){
+					if((preproc.e(i,this)<=j)&&(j<=preproc.l(i,this))) {
+						constraint.addTerm(1, x[i][j][s+1]);
+						constraint.addTerm(-1, x[i][j][s]);
+					}
+
+				}
+				constraints.add(model.addLe(constraint,0));
+			}
+
+		}
+		System.out.println("size4: "+constraints.size());
+
+		//(4)			[7]
+
+		for(int j = 0; j < smax ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+			for(int k = 1; k < (Mp+1) ; k++ )
+			{
+				constraint.addTerm(1,v[j][k]);
+
+			}
+			constraint.addTerm(-1,y[j]);
+
+			constraints.add(model.addEq(constraint, 0));
+		}
+		System.out.println("size5: "+constraints.size());
+		//(5)		[8]
+
+		for(int j = 0; j < (smax-1) ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			constraint.addTerm(1, y[j+1]);
+			constraint.addTerm(-1, y[j]);
+
+			constraints.add(model.addLe(constraint, 0));
+		}
+		System.out.println("size6: "+constraints.size());
+		//(6)		[9]
+		System.out.println(P);
+
+		for(int e = 0; e < P.size(); e++){
+			int i = P.get(e).getA();
+			int j = P.get(e).getB();
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				for(int s = 0; s < preproc.M(k, this) ; s++ )
+				{
+
+					constraint.addTerm(M*k+s, x[i][k][s]);
+
+
+				}}
+
+			for(int k= preproc.e(j,this); k< (preproc.l(j,this)+1) ; k++){
+				for(int s = 0; s < preproc.M(k, this) ; s++ )
+				{
+
+					constraint.addTerm(- M*k-s , x[j][k][s]);
+
+				}}
+
+			constraints.add(model.addLe(constraint,0));
+		}
+
+		System.out.println("size7: "+constraints.size());
+		//(8)  [11]
+
+		for(int i =0;i<n;i++){
+			for(int j =0;j<n;j++){
+				if(i!=j) {
+					for(int k = Max(preproc.e(i,this),preproc.e(j,this)); k <( Min(preproc.l(i,this),preproc.l(j,this))+1) ; k++ ) {
+						for(int s = 0; s <preproc.M(k, this) -1 ; s++ )
+						{
+							IloLinearNumExpr constraint = model.linearNumExpr();
+							constraint.addTerm(1, x[i][k][s]  );
+							constraint.addTerm(1,  x[j][k][s+1]  );
+							constraint.addTerm(-1,  z[i][j][k] );
+							constraints.add(model.addLe(constraint,1));
+
+						}
+					}}}}
+		System.out.println("size8: "+constraints.size());
+		//(9)    [12]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =preproc.e(i, this);j<(preproc.l(i, this)+1);j++){
+
+				for(int s = 0; s < preproc.M(j, this)-1 ; s++ )
+				{
+
+					IloLinearNumExpr constraint = model.linearNumExpr();
+
+					for(int k = 0; k<n;k++){
+						if((i!=k)&&(j<=preproc.l(k, this))&&(preproc.e(k, this)<=j)) {
+
+							constraint.addTerm(-1, x[k][j][s+1]);
+						}
+					}
+
+					constraint.addTerm(1,x[i][j][s]);
+					constraint.addTerm(-1,w[i][j]);
+					constraints.add(model.addLe(constraint,0));
+				}
+			}}
+		System.out.println("size9: "+constraints.size());
+		//(10)		[13]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =preproc.e(i, this);j<(preproc.l(i, this)+1);j++){
+
+
+
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+				constraint.addTerm(1,x[i][j][preproc.M(j, this)-1]);
+				constraint.addTerm(-1,w[i][j]);
+				constraints.add(model.addLe(constraint,0));
+
+			}}
+
+
+		System.out.println("size10: "+constraints.size());
+
+		//(11)		[14]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =0;j<n;j++){
+				if(i!=j) {
+					for(int k = Max(preproc.e(i, this),preproc.e(j, this)); k < (Min(preproc.l(i, this),preproc.l(j, this))+1) ; k++ )
+					{
+						IloLinearNumExpr constraint = model.linearNumExpr();
+						constraint.addTerm(1,x[j][k][0]);
+						constraint.addTerm(1,w[i][k]);
+						constraint.addTerm(-1,z[i][j][k]);
+						constraints.add(model.addLe(constraint,1));
+					}
+				}
+			}}
+
+
+		System.out.println("size11: "+constraints.size());
+
+		for(int e = 0; e < I.size(); e++){
+			int i = I.get(e).getA();
+			int j = I.get(e).getB();
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(k, x[i][k][s]);
+				}}
+			for(int k= preproc.e(j,this); k< (preproc.l(j,this)+1) ; k++){
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(-k , x[j][k][s]);
+				}}
+			constraints.add(model.addEq(constraint,0));
+		}
+		System.out.println("size12: "+constraints.size());
+		for(int e = 0; e < E.size(); e++){
+			List<Integer> ES = E.get(e); 
+
+			for(int k = preproc.MaxE(ES, this); k < preproc.MinL(ES, this) ; k++ ) {
+
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+               for (int i :ES) {
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(1, x[i][k][s]);
+				}}
+				constraints.add(model.addLe(constraint,ES.size()-1));
+			}
+		}
+		System.out.println("size13: "+constraints.size());
+		for(int j = 0; j < smax ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int a = 0; a<Na;a++) {
+				constraint.addTerm(1,u[j][a]);
+			}
+			constraints.add(model.addLe(constraint , 1));
+
+		}
+		System.out.println("size14: "+constraints.size());
+
+
+		for (int i = 0; i<n; i++) {
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				IloLinearNumExpr constraint = model.linearNumExpr();
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(1,x[i][k][s]);
+				}
+				for(int a: A.get(i)) {
+					constraint.addTerm(-1,u[k][a]);
+				}
+
+
+				constraints.add(model.addLe(constraint , 0));
+
+			}
+		}
+
+
+		System.out.println("size15: "+constraints.size());
+		model.exportModel("RTLB.lp");
+
+		//model.setParam(IloCplex.Param.TimeLimit,50);
+		boolean isSolved = model.solve();
+		if(isSolved){
+			double objValue = model.getObjValue();
+
+			System.out.println("obj_val = "+objValue);
+			//	System.out.println(model.getValue(x[0][0][0]));
+			for(int i =0;i<n;i++){
+				for(int j =preproc.e(i,this) ; j < (preproc.l(i,this)+1) ; j++){
+					for(int s = 0; s < preproc.M(j, this) ; s++ )
+					{
+
+						if(model.getValue(x[i][j][s])==1) {
+							System.out.println("L'operation "+i+" est affect�e a la station "+j +" sa position dans la s�quence est "+ s);
+
+							if(model.getValue(w[i][j])==1) {
+								System.out.println("Oui"+i+ " "+j);
+							}else
+								System.out.println("Non"+i+ " "+j);
+						}
+					}
+				}
+			}
+
+
+			List<List<Integer>> l = new ArrayList<List<Integer>>();
+
+			for(int j = 0; j < smax ; j++){
+
+				List<Integer> laux = new ArrayList<Integer>();
+				for(int s = 0; s < preproc.M(j, this) ; s++ )
+				{
+					for(int i =0;i<n;i++){
+						if((preproc.e(i,this)<=j)&&(j<=preproc.l(i,this))) {
+							if(model.getValue(x[i][j][s])==1) {
+
+								laux.add(i);
+							}}
+					}
+
+				}
+				l.add(laux);
+			}
+
+			System.out.println(l);
+
+
+
+			for(int j = 0 ; j<smax; j++) {
+				double slack = model.getSlack(constraints.get(j)) ;
+				for(int k = 1 ; k <(Mp+1); k++) {
+					if(model.getValue(v[j][k])==1){
+						System.out.println("A la station "+j +" est affectee "+ k + " machines. Slack : "+slack );
+					}
+				}
+			}
+			//		System.out.println(model.getValue(z[3][4][1]));
+			//	System.out.println(model.getValue(z[4][3][1]));
+		} else {
+			System.out.println("Model not solved");
+		}
+	} catch (IloException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+
+}
+
+public IloCplex getModelRelax() {
+
+	try {
+		IloCplex model = new IloCplex();
+		// Nous venons de cr�er un mod�le vide
+		x = new IloNumVar[n][smax][M];
+		y = new IloNumVar [smax];
+		z = new IloNumVar [n][n][smax];
+		w = new IloNumVar [n][smax];
+		v = new IloNumVar [smax][Mp+1];
+		u = new IloNumVar [smax][Na];
+
+		for (int k = 0; k<smax;k++) {
+			for(int a = 0; a<Na;a++) {
+				u[k][a] = model.numVar(0,1,IloNumVarType.Float,"u("+k+")"+"("+a+")");
+			}
+		}
+
+		for(int i =0;i<n;i++){
+			for(int j =preproc.e(i,this) ; j < (preproc.l(i,this)+1) ; j++){
+				for(int s = 0; s < preproc.M(j, this) ; s++ )
+				{
+					x[i][j][s] = model.numVar(0,1,IloNumVarType.Float,"x("+i+")("+j+")("+s+")");
+				}}}
+
+		for(int j = 0; j < smax ; j++){
+			y[j] = model.numVar(0,1,IloNumVarType.Float,"y("+j+")");
+		}
+
+		for(int i =0;i<n;i++){
+			for(int j = 0; j <n ; j++){
+				if(i != j) {
+					for(int k = Max(preproc.e(i,this),preproc.e(j,this)); k <( Min(preproc.l(i,this),preproc.l(j,this))+1) ; k++ )
+					{
+						z[i][j][k] = model.numVar(0,1,IloNumVarType.Float,"z("+i+")("+j+")("+k+")");
+					}
+				}}}
+		for(int i =0;i<n;i++){
+			for(int j = preproc.e(i,this); j < (preproc.l(i,this)+1) ; j++){
+				w[i][j] = model.numVar(0,1,IloNumVarType.Float,"w("+i+")"+"("+j+")");
+			}}
+
+
+		for(int i =0;i<smax;i++){
+			for(int j = 1; j < (Mp+1) ; j++){
+
+				v[i][j] = model.numVar(0,1,IloNumVarType.Float,"v("+i+")"+"("+j+")");
+
+			}}
+
+
+
+		IloLinearNumExpr obj = model.linearNumExpr();
+
+
+		for(int i =0;i<smax;i++){
+			for(int j = 1; j < (Mp+1) ; j++){
+
+				obj.addTerm(j,v[i][j]);
+
+			}}
+
+		model.addMinimize(obj);
+
+
+		List<IloRange> constraints = new ArrayList<IloRange>();
+
+
+		//(7)    		[10]
+
+
+		for(int k =0;k<smax;k++){
+
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+			for(int i =0;i<n;i++){
+
+				if((preproc.e(i,this)<=k)&&(k<=preproc.l(i,this))) {
+
+					for(int s = 0; s< preproc.M(k, this);s++){
+						constraint.addTerm(t[i], x[i][k][s]);
+					}
+				}}
+
+			for(int i =0;i<n;i++){
+				for(int j =0;j<n;j++){
+					if((i!=j)&&(Max(preproc.e(i,this),preproc.e(j,this))<=k)&&(k<=Min(preproc.l(i,this),preproc.l(j,this))))
+					{	constraint.addTerm(tt[i][j], z[i][j][k]);
+					}
+				}
+			}
+
+			for(int p =1;p<(Mp+1);p++){
+
+				constraint.addTerm(-C*p, v[k][p]);
+			}
+
+			constraints.add(model.addLe(constraint,0));
+
+		}
+
+
+		System.out.println("size1: "+constraints.size());
+
+
+		//(1)           [4]
+
+		for(int i =0;i<n;i++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int j = preproc.e(i,this); j < (preproc.l(i,this)+1) ; j++){
+				for(int s = 0; s < preproc.M(j, this) ; s++ )
+				{
+					constraint.addTerm(1,x[i][j][s]);
+
+				}}
+			constraints.add(model.addEq(constraint, 1));
+		}
+		System.out.println("size2: "+constraints.size());
+		//(2)			[5]
+
+		for(int j = 0; j < smax ; j++){
+			for(int s = 0; s < preproc.M(j, this) ; s++ )
+			{
+				IloLinearNumExpr constraint = model.linearNumExpr();
+				for(int i =0;i<n;i++){
+					if((preproc.e(i,this)<=j)&&(j<=preproc.l(i,this))) {
+						constraint.addTerm(1,x[i][j][s]);
+
+					}
+				}
+				constraints.add(model.addLe(constraint , 1));
+
+			}
+
+		}
+		System.out.println("size3: "+constraints.size());
+		//(3)			[6]
+
+		for(int j = 0; j < smax ; j++){
+			for(int s = 0; s < (preproc.M(j, this)-1) ; s++ )
+			{
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+				for(int i =0;i<n;i++){
+					if((preproc.e(i,this)<=j)&&(j<=preproc.l(i,this))) {
+						constraint.addTerm(1, x[i][j][s+1]);
+						constraint.addTerm(-1, x[i][j][s]);
+					}
+
+				}
+				constraints.add(model.addLe(constraint,0));
+			}
+
+		}
+		System.out.println("size4: "+constraints.size());
+
+		//(4)			[7]
+
+		for(int j = 0; j < smax ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+			for(int k = 1; k < (Mp+1) ; k++ )
+			{
+				constraint.addTerm(1,v[j][k]);
+
+			}
+			constraint.addTerm(-1,y[j]);
+
+			constraints.add(model.addEq(constraint, 0));
+		}
+		System.out.println("size5: "+constraints.size());
+		//(5)		[8]
+
+		for(int j = 0; j < (smax-1) ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			constraint.addTerm(1, y[j+1]);
+			constraint.addTerm(-1, y[j]);
+
+			constraints.add(model.addLe(constraint, 0));
+		}
+		System.out.println("size6: "+constraints.size());
+		//(6)		[9]
+		System.out.println(P);
+
+		for(int e = 0; e < P.size(); e++){
+			int i = P.get(e).getA();
+			int j = P.get(e).getB();
+			IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				for(int s = 0; s < preproc.M(k, this) ; s++ )
+				{
+
+					constraint.addTerm(M*k+s, x[i][k][s]);
+
+
+				}}
+
+			for(int k= preproc.e(j,this); k< (preproc.l(j,this)+1) ; k++){
+				for(int s = 0; s < preproc.M(k, this) ; s++ )
+				{
+
+					constraint.addTerm(- M*k-s , x[j][k][s]);
+
+				}}
+
+			constraints.add(model.addLe(constraint,0));
+		}
+
+		System.out.println("size7: "+constraints.size());
+		//(8)  [11]
+
+		for(int i =0;i<n;i++){
+			for(int j =0;j<n;j++){
+				if(i!=j) {
+					for(int k = Max(preproc.e(i,this),preproc.e(j,this)); k <( Min(preproc.l(i,this),preproc.l(j,this))+1) ; k++ ) {
+						for(int s = 0; s <preproc.M(k, this) -1 ; s++ )
+						{
+							IloLinearNumExpr constraint = model.linearNumExpr();
+							constraint.addTerm(1, x[i][k][s]  );
+							constraint.addTerm(1,  x[j][k][s+1]  );
+							constraint.addTerm(-1,  z[i][j][k] );
+							constraints.add(model.addLe(constraint,1));
+
+						}
+					}}}}
+		System.out.println("size8: "+constraints.size());
+		//(9)    [12]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =preproc.e(i, this);j<(preproc.l(i, this)+1);j++){
+
+				for(int s = 0; s < preproc.M(j, this)-1 ; s++ )
+				{
+
+					IloLinearNumExpr constraint = model.linearNumExpr();
+
+					for(int k = 0; k<n;k++){
+						if((i!=k)&&(j<=preproc.l(k, this))&&(preproc.e(k, this)<=j)) {
+
+							constraint.addTerm(-1, x[k][j][s+1]);
+						}
+					}
+
+					constraint.addTerm(1,x[i][j][s]);
+					constraint.addTerm(-1,w[i][j]);
+					constraints.add(model.addLe(constraint,0));
+				}
+			}}
+		System.out.println("size9: "+constraints.size());
+		//(10)		[13]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =preproc.e(i, this);j<(preproc.l(i, this)+1);j++){
+
+
+
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+
+				constraint.addTerm(1,x[i][j][preproc.M(j, this)-1]);
+				constraint.addTerm(-1,w[i][j]);
+				constraints.add(model.addLe(constraint,0));
+
+			}}
+
+
+		System.out.println("size10: "+constraints.size());
+
+		//(11)		[14]
+		for(int i = 0 ; i< n ; i++){
+			for(int j =0;j<n;j++){
+				if(i!=j) {
+					for(int k = Max(preproc.e(i, this),preproc.e(j, this)); k < (Min(preproc.l(i, this),preproc.l(j, this))+1) ; k++ )
+					{
+						IloLinearNumExpr constraint = model.linearNumExpr();
+						constraint.addTerm(1,x[j][k][0]);
+						constraint.addTerm(1,w[i][k]);
+						constraint.addTerm(-1,z[i][j][k]);
+						constraints.add(model.addLe(constraint,1));
+					}
+				}
+			}}
+
+
+		System.out.println("size11: "+constraints.size());
+
+		for(int e = 0; e < I.size(); e++){
+			int i = I.get(e).getA();
+			int j = I.get(e).getB();
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(k, x[i][k][s]);
+				}}
+			for(int k= preproc.e(j,this); k< (preproc.l(j,this)+1) ; k++){
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(-k , x[j][k][s]);
+				}}
+			constraints.add(model.addEq(constraint,0));
+		}
+		System.out.println("size12: "+constraints.size());
+		for(int e = 0; e < E.size(); e++){
+			List<Integer> ES = E.get(e); 
+
+			for(int k = preproc.MaxE(ES, this); k < preproc.MinL(ES, this) ; k++ ) {
+
+				IloLinearNumExpr constraint = model.linearNumExpr();
+
+               for (int i :ES) {
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(1, x[i][k][s]);
+				}}
+				constraints.add(model.addLe(constraint,ES.size()-1));
+			}
+		}
+		System.out.println("size13: "+constraints.size());
+		for(int j = 0; j < smax ; j++){
+			IloLinearNumExpr constraint = model.linearNumExpr();
+			for(int a = 0; a<Na;a++) {
+				constraint.addTerm(1,u[j][a]);
+			}
+			constraints.add(model.addLe(constraint , 1));
+
+		}
+		System.out.println("size14: "+constraints.size());
+
+		for (int i = 0; i<n; i++) {
+			for(int k= preproc.e(i,this); k< (preproc.l(i,this)+1) ; k++){
+				IloLinearNumExpr constraint = model.linearNumExpr();
+				for(int s = 0; s <preproc.M(k, this) ; s++ ) {
+					constraint.addTerm(1,x[i][k][s]);
+				}
+				for(int a: A.get(i)) {
+					constraint.addTerm(-1,u[k][a]);
+				}
+
+
+				constraints.add(model.addLe(constraint , 0));
+
+			}
+		}
+
+
+		System.out.println("size15: "+constraints.size());
+		model.exportModel("RTLB.lp");
+
+		/*	 IloNumVar[] startVar = new IloNumVar[n*(smax)*(M)];
+		     double[] startVal = new double[n*(smax)*(M)];
+int idx =0;
+
+double[][][] start = new double[7][3][3];
+
+
+for(int i =0;i<7;i++){
+	for(int j =0 ; j < 3 ; j++){
+		for(int s = 0; s < 3 ; s++ )
+		{start[i][j][s]=0;}}}
+
+start[0][0][0] = 1 ;
+start[1][0][1] = 1 ;
+start[2][0][2] = 1 ;
+start[3][1][0] = 1 ;
+start[4][1][1] = 1 ;
+start[5][2][0] = 1 ;
+start[6][2][1] = 1 ;
+
+
+				for(int i =0;i<n;i++){
+					for(int j =preproc.e(i,this) ; j < (preproc.l(i,this)+1) ; j++){
+						for(int s = 0; s < preproc.M(j, this) ; s++ )
+						{
+		             startVar[idx] = x[i][j][s];
+		             startVal[idx] = start[i][j][s];
+		             ++idx;
+		         }}}
+		 model.addMIPStart(startVar, startVal);
+
+		 */
+
+		return model;
+	} catch (IloException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	return null;
+}
+
+public double solveModelRelax(IloCplex model){
+
+
+	try {
+
+
+		boolean isSolved = model.solve();
+		if(isSolved){
+			double objValue = model.getObjValue();
+
+
+			System.out.println("obj_val = "+objValue);
+			return objValue;
+		} else {
+			System.out.println("Model not solved");
+		}
+	} catch (IloException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	return -1;
+
+}
+public List<List<Integer>> getE() {
+	return E;
+}
+
+public void setE(List<List<Integer>> e) {
+	E = e;
+}
+
+public List<Couple> getI() {
+	return I;
+}
+
+public void setI(List<Couple> i) {
+	I = i;
+}
+
+public int getNa() {
+	return Na;
+}
+
+public void setNa(int na) {
+	Na = na;
+}
+
+public List<List<Integer>> getA() {
+	return A;
+}
+
+public void setA(List<List<Integer>> a) {
+	A = a;
+}
+
+private int Max(int i, int j) {
+	if(j<i)
+		return i;
+	else return j;
+
+}
+
+private int Min(int i, int j) {
+	if(i<j)
+		return i;
+	else return j;
+
+}
+
+public double tmin(int i2) {
+	double min = Integer.MAX_VALUE;
+	for (int i = 0; i< this.getN();i++) {
+		if (i != i2) {
+			if (min>tt[i][i2]) min = tt[i][i2];
+			if (min>tt[i2][i]) min = tt[i2][i];
+
+		}
+	}
+	return min;
+
+}
+
+public double cmin () {
+	double res = Integer.MAX_VALUE;
+	for (int i = 0 ; i<n;i++) {
+		for (int j = 0 ; j<n;j++) {
+			if ((i!=j)&& (tt[i][j]<res )){
+				res = tt[i][j];
+			}
+
+		}
+
+	}
+
+	return res;
+}
+
+
+
+
+public double tmin() {
+	double res = Integer.MAX_VALUE;
+	for (int i = 0 ; i<n;i++) {
+
+		if (t[i]<res ){
+			res = t[i];
+		}
+
+	}
+
+
+
+	return res;
+}
+// Retourne la liste des j plus petites dur�es dont les op�rations ne sont pas contenues
+public List<Double> tminL(List<Integer> visited2, int j) {
+	List<Integer> visited3 = new ArrayList<Integer>();
+	visited3.addAll(visited2);
+	List<Double> resl = new ArrayList<Double>();
+
+	while(resl.size()<j) {
+		double res = Integer.MAX_VALUE;
+		int k = -1;
+		for (int i = 0 ; i<n;i++) {
+			if((!visited3.contains(i))&& (t[i]<=res )){
+				res = t[i];
+				k = i;
+			}
+		}
+		resl.add(res);
+		if (k!=-1) {
+			visited3.add(k);
+		}	}
+
+	return resl;
+}
+
+public double tmin(List<Integer> visited2, int j) {
+
+	List<Double> resl =tminL(visited2,  j);
+
+	Double sum = 0.;
+	for(Double i : resl) {
+		sum = sum + i;
+	}
+	return sum;
+}
+public Double cminfrom(List<Couple> visited3,int i){
+
+
+	double res = Integer.MAX_VALUE;
+	int k2 = -1;
+	for (int j = 0 ; j<n;j++) {
+
+		if((i!=j)&&(!visited3.contains(new Couple (i,j)))&& (tt[i][j]<=res )){
+			res = tt[i][j];
+
+			k2= j;
+		}
+	}
+	for (int ii = 0; ii<this.getN();ii++) {
+
+		visited3.add(new Couple (i,ii));
+	}
+
+	return res;
+}
+public Double cminto(List<Couple> visited3,int j){
+
+
+	double res = Integer.MAX_VALUE;
+	int k2 = -1;
+	for (int i = 0 ; i<n;i++) {
+
+		if((i!=j)&&(!visited3.contains(new Couple (i,j)))&& (tt[i][j]<=res )){
+			res = tt[i][j];
+
+			k2= i;
+		}
+	}
+	for (int ii = 0; ii<this.getN();ii++) {
+
+		visited3.add(new Couple (ii,j));
+	}
+
+	return res;
+}
+public List<Double> cminl(List<Couple> visited3, int j) {
+	List<Couple> visited4 = new ArrayList<Couple>();
+	visited3.addAll(visited3);
+	List<Double> resl = new ArrayList<Double>();
+
+	while(resl.size()<j) {
+		double res = Integer.MAX_VALUE;
+		int k1 = -1;
+		int k2 = -1;
+		for (int i = 0 ; i<n;i++) {
+			for (int ip = 0 ; ip<n;ip++) {
+				if((i!=ip)&&(!visited4.contains(new Couple (i,ip)))&& (tt[i][ip]<=res )){
+					res = tt[i][ip];
+					k1 = i;
+					k2= ip;
+				}
+			}}
+		resl.add(res);
+		if (k1!=-1) {
+			visited4.add(new Couple (k1,k2));
+		}	}
+
+	return resl;
+}
+public double cmin(List<Couple> visited3, int j) {
+	List<Double> resl =cminl(visited3,  j);
+
+	Double sum = 0.;
+	for(Double i : resl) {
+		sum = sum + i;
+	}
+	return sum;
+}
+}

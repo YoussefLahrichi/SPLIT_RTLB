@@ -1,0 +1,19 @@
+Initial solution feasible
+Cost (Number of machines) of initial solution 7
+Number of stations of initial solution 4
+50 iterated local searches of 100 iterations each.
+Cost (Number of machines) 7
+Number of stations 4
+Time 0.075462092
+
+Workstation number 1 contains the following operations [1, 2, 3]
+Workstation number 1 uses the following number of machines 3
+
+Workstation number 2 contains the following operations [4]
+Workstation number 2 uses the following number of machines 1
+
+Workstation number 3 contains the following operations [5]
+Workstation number 3 uses the following number of machines 1
+
+Workstation number 4 contains the following operations [7, 6]
+Workstation number 4 uses the following number of machines 2

@@ -1,0 +1,198 @@
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.Random;
+
+
+/**
+ * @author yolahric
+ *
+ */
+/**
+ * @author yolahric
+ *
+ */
+public class ILS_SPLIT {
+
+	/** performs the Itereted local Search (100 iterations of the local search) 
+	 * @param instance 
+	 * The considered RTLB instance
+	 * @param seed
+	 * Random seed
+	 * @param sol
+	 * Initial solution
+	 * @param string
+	 * Name of the file where to write the cost of the solution
+	 * @return
+	 * @throws FileNotFoundException
+	 * @throws UnsupportedEncodingException
+	 */
+	public static Solution ils(RTLB instance,int seed , Solution sol, String string) throws FileNotFoundException, UnsupportedEncodingException {
+		PrintWriter writer = new PrintWriter(string, "UTF-8");
+		Random rnd = new Random(seed);
+		//	initial solution
+		Solution best = new Solution(sol);
+		System.out.println("Initial Solution Cost "+ best.cost());
+		int iterILS = 0;
+		int iter = -1;
+		long startTime = System.nanoTime();
+		while (iterILS<100) {
+			System.out.println("iterILS "+ iterILS);
+			// local search 
+			sol = ls(instance,rnd,sol);
+
+			if (sol.cost()<best.cost()) {
+				best = new Solution(sol);
+				iter = iterILS;
+			}
+			System.out.println("after local seach, cost,WS "+ sol.cost()+", "+sol.getL().size()+ " best cost "+ best.cost());
+			// perturbation
+			sol = pertub1(instance,rnd,3,sol);
+			System.out.println("after perturbation, cost "+ sol.cost()+ " best cost "+ best.cost());
+			iterILS++;
+		}
+		writer.println("Cost "+best.cost());
+		writer.println("WS "+best.getL().size());
+		writer.println("iter "+iter);
+		writer.println("Time "+(System.nanoTime()-startTime)/1000000000.);
+		writer.close();
+		return best;
+	}
+	
+	
+ public static Solution initialSolutionM1(RTLB instance, Random rnd) {
+		Sequence s = new Sequence(instance,rnd);
+		s.mor(instance,rnd);
+		//	System.out.println("Initial randomly generated sequence" + s);
+		Split sp = new Split(instance,s.getSeq());
+		Solution cs = sp.solve_unfeas(s.getSeq());
+		if (cs.getL().size()>instance.getSmax()) {
+			//	System.out.println("Max number of workstations exceeded");
+			//	System.out.println("Perform merge reparation");
+			boolean aux = cs.repair(instance);
+			while (aux) {
+				aux = cs.repair(instance);
+			}
+		}
+
+		return cs;
+	}
+
+	//IJPR : Algo2 + Algo4
+	/**
+	 * @param instance
+	 * @param rnd
+	 * @return
+	 */
+	public static Solution initialSolutionM2(RTLB instance, Random rnd) {	
+		Sequence s = new Sequence(instance,rnd);
+		s.mor(instance,rnd);
+		//	System.out.println("Initial randomly generated sequence" + s);
+		Split sp = new Split(instance,s.getSeq());
+		Solution cs = sp.solve_unfeas(s.getSeq());
+		int [][] cres = sp.getC();
+		s = cs.toSolution();
+		long startTime = System.nanoTime();
+		double endTime =  ((System.nanoTime() - startTime)/1000000000.);
+		while((cs.getL().size()>instance.getSmax())&(endTime<60)) {
+
+			int i = rnd.nextInt(s.getN());
+			int ip = Sequence.p(i,instance,s); 
+			int is = Sequence.s(i,instance,s); 
+			if (is-ip>2) {
+				int j = ip + 1 + rnd.nextInt(is-ip-1);
+				//System.out.println("i"+i+"j"+j);
+				if(i !=j) {
+					Sequence voisin = s.insertion(i, j);
+					Solution sVoisin =  sp.solve_unfeas(voisin.getSeq(),i,j,cres);			
+					if ((sVoisin != null) && voisin.repects(instance)&& (((cs.getL().size()>=sVoisin.getL().size()))))   {
+						cs = sVoisin;
+						s = voisin;		
+						cres = sp.getC();
+					}
+				}
+			}
+			endTime =  ((System.nanoTime() - startTime)/1000000000.);
+		}
+		return cs;
+	}
+
+
+
+	public static Solution ls(RTLB instance,Random rnd, Solution cs) {
+
+		Sequence s = cs.toSolution();
+		Split sp = new Split(instance,s.getSeq());
+		int [][] cres = sp.getC();
+
+		//	System.out.println("SS "+sum);
+
+		for(int kkk= 0;kkk<1000;kkk++) {
+			//	System.out.println("iter  LS"+kkk);
+			//		System.out.println("current solution cost "+ cs.cost());			
+			//		System.out.println("Number of workstations "+ cs.getL().size());
+			int i = rnd.nextInt(s.getN());
+			int ip = Sequence.p(i,instance,s); 
+			int is = Sequence.s(i,instance,s); 
+			if (is-ip>2) {
+				int j = ip + 1 + rnd.nextInt(is-ip-1);
+				//System.out.println("i"+i+"j"+j);
+				if(i !=j) {
+					//System.out.println(s);
+					Sequence voisin = s.insertion(i, j);
+					//	System.out.println(voisin);
+					//	Solution sVoisin =  sp.solve(voisin.getSeq());
+					Solution sVoisin =  sp.solve(voisin.getSeq(),i,j,cres);
+					//System.out.println("Actual cost "+cs.cost());
+
+					//		System.out.println("i = "+i+" j =" +j);
+					if ((sVoisin != null) && ((sVoisin.cost()<=cs.cost())))   {
+						cs = sVoisin;
+						s = voisin;				
+						cres = sp.getC();
+						//System.out.println("i = "+i+" j =" +j);
+						//System.out.println("Better neighbour found, new cost "+cs.cost());
+						//				System.out.println("Number of workstations "+ cs.getL().size());
+					}
+				}
+			}
+
+		}
+		//	System.out.println("Feasible solution Found, its cost "+ cs.cost());
+		//	System.out.println("Feasible solution Found "+ cs);
+		//	System.out.println("Number of workstations "+ cs.getL().size());
+		return cs;
+	}
+
+	// Apply  nb times insertion,  preserve feasibility
+
+	public static  Solution pertub1(RTLB instance, Random rnd , int nb, Solution initSol) {
+		Sequence initSeq = initSol.toSolution();
+		Solution res = new Solution(initSol);
+		Split sp = new Split(instance,initSeq.getSeq());
+		int k = 0;
+		while(k<nb) {
+			int i = rnd.nextInt(initSeq.getN());
+			int ip = Sequence.p(i,instance,initSeq); 
+			int is = Sequence.s(i,instance,initSeq); 
+			if (is-ip>2) {
+				int j = ip + 1 + rnd.nextInt(is-ip-1);
+				//System.out.println("i"+i+"j"+j);
+				if(i !=j) {
+					Sequence voisin = initSeq.insertion(i, j);
+					Solution sVoisin =  sp.solve(voisin.getSeq());
+					if ((sVoisin != null)) {
+						//	if ((sVoisin != null)&&voisin.repects(instance)) {				
+						k++;
+						initSeq.setSeq(voisin.getSeq());
+						res = new Solution(sVoisin);
+					}			
+				}
+			}
+		}
+		return res;
+	}
+
+
+
+}
